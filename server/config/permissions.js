@@ -1,0 +1,15 @@
+export const PERMISSIONS = {
+  PROJECTS_READ: "projects:read",
+  PROJECTS_MANAGE: "projects:manage",
+  PROVIDER_KEYS_READ: "provider_keys:read",
+  PROVIDER_KEYS_MANAGE: "provider_keys:manage",
+  VIRTUAL_KEYS_READ: "virtual_keys:read",
+  VIRTUAL_KEYS_CREATE: "virtual_keys:create",
+  VIRTUAL_KEYS_REVOKE: "virtual_keys:revoke",
+  LOGS_READ: "logs:read",
+  USAGE_READ: "usage:read",
+  GUARDRAILS_MANAGE: "guardrails:manage",
+  USERS_MANAGE: "users:manage",
+  ROLES_MANAGE: "roles:manage",
+  AUDIT_READ: "audit:read",
+};
