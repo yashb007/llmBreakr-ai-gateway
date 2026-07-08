@@ -3,7 +3,18 @@ import httpStatus from "http-status";
 import User from "../../models/user.model.js";
 import Session from "../../models/session.model.js";
 import AuditLog from "../../models/auditLog.model.js";
+import UserRole from "../../models/userRole.model.js";
+import RolePermission from "../../models/rolePermission.model.js";
+import UserPermission from "../../models/userPermission.model.js";
 import APIError from "../../utils/APIError.js";
+
+const findUserOr404 = async (id) => {
+  const user = await User.findByPk(id);
+  if (!user) {
+    throw new APIError({ message: "User not found", status: httpStatus.NOT_FOUND });
+  }
+  return user;
+};
 
 const publicUser = (user) => ({
   id: user.id,
@@ -21,11 +32,7 @@ export const listUsers = async () => {
 };
 
 export const getUser = async (id) => {
-  const user = await User.findByPk(id);
-  if (!user) {
-    throw new APIError({ message: "User not found", status: httpStatus.NOT_FOUND });
-  }
-  return publicUser(user);
+  return publicUser(await findUserOr404(id));
 };
 
 export const createUser = async ({ email, name, password, is_super_admin }, actor) => {
@@ -57,10 +64,7 @@ export const createUser = async ({ email, name, password, is_super_admin }, acto
 };
 
 export const updateUser = async (id, updates, actor) => {
-  const user = await User.findByPk(id);
-  if (!user) {
-    throw new APIError({ message: "User not found", status: httpStatus.NOT_FOUND });
-  }
+  const user = await findUserOr404(id);
 
   if (updates.name !== undefined) user.name = updates.name;
   if (updates.status !== undefined) user.status = updates.status;
@@ -86,10 +90,7 @@ export const updateUser = async (id, updates, actor) => {
 };
 
 export const deleteUser = async (id, actor) => {
-  const user = await User.findByPk(id);
-  if (!user) {
-    throw new APIError({ message: "User not found", status: httpStatus.NOT_FOUND });
-  }
+  const user = await findUserOr404(id);
   if (user.id === actor.id) {
     throw new APIError({ message: "Cannot delete your own account", status: httpStatus.BAD_REQUEST });
   }
@@ -103,6 +104,78 @@ export const deleteUser = async (id, actor) => {
     action: "user.delete",
     resource_type: "user",
     resource_id: String(id),
+    status: "success",
+  });
+};
+
+// Combines what the user's roles grant with their individual overrides:
+// a "deny" override removes a role-granted permission, a "grant" override
+// adds a permission beyond what any of their roles give them.
+export const getUserPermissions = async (userId) => {
+  await findUserOr404(userId);
+
+  const userRoles = await UserRole.findAll({ where: { user_id: userId } });
+  const roleIds = userRoles.map((userRole) => userRole.role_id);
+  const rolePermissions = roleIds.length
+    ? [...new Set((await RolePermission.findAll({ where: { role_id: roleIds } })).map((rp) => rp.permission))]
+    : [];
+
+  const overrides = await UserPermission.findAll({ where: { user_id: userId } });
+  const grants = overrides.filter((override) => override.effect === "grant").map((o) => o.permission);
+  const denies = overrides.filter((override) => override.effect === "deny").map((o) => o.permission);
+
+  const effective = [...new Set([...rolePermissions, ...grants])].filter(
+    (permission) => !denies.includes(permission)
+  );
+
+  return {
+    role_permissions: rolePermissions,
+    overrides: overrides.map((override) => ({
+      permission: override.permission,
+      effect: override.effect,
+    })),
+    effective,
+  };
+};
+
+export const setUserPermission = async (userId, permission, effect, actor) => {
+  await findUserOr404(userId);
+
+  await UserPermission.upsert({
+    user_id: userId,
+    permission,
+    effect,
+    granted_by: actor.id,
+    granted_at: new Date(),
+  });
+
+  await AuditLog.create({
+    actor_id: actor.id,
+    actor_email: actor.email,
+    actor_type: "user",
+    action: "user.permission.set",
+    resource_type: "user_permission",
+    resource_id: `${userId}:${permission}`,
+    metadata: JSON.stringify({ effect }),
+    status: "success",
+  });
+
+  return { user_id: Number(userId), permission, effect };
+};
+
+export const removeUserPermission = async (userId, permission, actor) => {
+  const deleted = await UserPermission.destroy({ where: { user_id: userId, permission } });
+  if (!deleted) {
+    throw new APIError({ message: "Permission override not found", status: httpStatus.NOT_FOUND });
+  }
+
+  await AuditLog.create({
+    actor_id: actor.id,
+    actor_email: actor.email,
+    actor_type: "user",
+    action: "user.permission.remove",
+    resource_type: "user_permission",
+    resource_id: `${userId}:${permission}`,
     status: "success",
   });
 };

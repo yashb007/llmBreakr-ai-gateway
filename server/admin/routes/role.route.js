@@ -48,7 +48,7 @@ router.delete("/:id", validate(roleValidation.getRole), roleController.deleteRol
 /**
  * PUT /api/admin/roles/:id/permissions
  * Replace a role's full permission set.
- * params: { id: number }
+ * params: { id: number } role id
  * body: { permissions: string[] }
  */
 router.put(
@@ -60,22 +60,22 @@ router.put(
 /**
  * GET /api/admin/roles/:id/users
  * List users who hold this role.
- * params: { id: number }
+ * params: { id: number } role id
  */
 router.get("/:id/users", validate(roleValidation.getRole), roleController.listRoleUsers);
 
 /**
  * POST /api/admin/roles/:id/users
  * Assign this role to a user. Rejected with 409 if already assigned.
- * params: { id: number }
- * body: { user_id: number }
+ * params: { id: number } role id
+ * body: { user_id: number } user id
  */
 router.post("/:id/users", validate(roleValidation.assignRole), roleController.assignRole);
 
 /**
  * DELETE /api/admin/roles/:id/users/:userId
  * Revoke this role from a user.
- * params: { id: number, userId: number }
+ * params: { id: number, userId: number } roleid, userid
  */
 router.delete("/:id/users/:userId", validate(roleValidation.revokeRole), roleController.revokeRole);
 

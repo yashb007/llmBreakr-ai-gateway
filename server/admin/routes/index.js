@@ -4,6 +4,7 @@ import userRoutes from "./user.route.js";
 import projectRoutes from "./project.route.js";
 import roleRoutes from "./role.route.js";
 import permissionRoutes from "./permission.route.js";
+import modelRoutes from "./model.route.js";
 
 const router = express.Router();
 
@@ -17,5 +18,6 @@ router.use("/users", userRoutes);
 router.use("/projects", projectRoutes);
 router.use("/roles", roleRoutes);
 router.use("/permissions", permissionRoutes);
+router.use("/models", modelRoutes);
 
 export default router;

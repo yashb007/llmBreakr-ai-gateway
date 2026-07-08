@@ -1,4 +1,7 @@
 import Joi from "joi";
+import { PERMISSIONS } from "../../config/permissions.js";
+
+const permissionValues = Object.values(PERMISSIONS);
 
 export const getUser = {
   params: Joi.object({
@@ -24,4 +27,25 @@ export const updateUser = {
     status: Joi.string().valid("active", "disabled"),
     password: Joi.string().min(8),
   }).min(1),
+};
+
+export const getUserPermission = {
+  params: Joi.object({
+    id: Joi.number().integer().required(),
+    permission: Joi.string()
+      .valid(...permissionValues)
+      .required(),
+  }),
+};
+
+export const setUserPermission = {
+  params: Joi.object({
+    id: Joi.number().integer().required(),
+    permission: Joi.string()
+      .valid(...permissionValues)
+      .required(),
+  }),
+  body: Joi.object({
+    effect: Joi.string().valid("grant", "deny").required(),
+  }),
 };

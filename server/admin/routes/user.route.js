@@ -46,4 +46,38 @@ router.patch("/:id", validate(userValidation.updateUser), userController.updateU
  */
 router.delete("/:id", validate(userValidation.getUser), userController.deleteUser);
 
+/**
+ * GET /api/admin/users/:id/permissions
+ * Get a user's role-derived permissions, individual overrides, and resolved effective set.
+ * params: { id: number }
+ */
+router.get(
+  "/:id/permissions",
+  validate(userValidation.getUser),
+  userController.getUserPermissions
+);
+
+/**
+ * PUT /api/admin/users/:id/permissions/:permission
+ * Grant or deny a specific permission for this user, overriding their roles.
+ * params: { id: number, permission: string }
+ * body: { effect: "grant" | "deny" }
+ */
+router.put(
+  "/:id/permissions/:permission",
+  validate(userValidation.setUserPermission),
+  userController.setUserPermission
+);
+
+/**
+ * DELETE /api/admin/users/:id/permissions/:permission
+ * Remove a permission override, reverting to whatever the user's roles grant.
+ * params: { id: number, permission: string }
+ */
+router.delete(
+  "/:id/permissions/:permission",
+  validate(userValidation.getUserPermission),
+  userController.removeUserPermission
+);
+
 export default router;

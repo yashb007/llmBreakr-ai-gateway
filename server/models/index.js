@@ -2,12 +2,14 @@ import User from "./user.model.js";
 import Role from "./role.model.js";
 import RolePermission from "./rolePermission.model.js";
 import UserRole from "./userRole.model.js";
+import UserPermission from "./userPermission.model.js";
 import Session from "./session.model.js";
 import AuditLog from "./auditLog.model.js";
 import Project from "./project.model.js";
 import ProviderCredential from "./providerCredential.model.js";
 import VirtualKey from "./virtualKey.model.js";
 import RequestLog from "./requestLog.model.js";
+import ProxyModel from "./proxyModel.model.js";
 
 // users.created_by -> users.id (self-reference)
 User.belongsTo(User, { as: "creator", foreignKey: "created_by" });
@@ -27,6 +29,13 @@ UserRole.belongsTo(Role, { foreignKey: "role_id" });
 // user_roles.granted_by -> users.id
 UserRole.belongsTo(User, { as: "grantedBy", foreignKey: "granted_by" });
 
+// user_permissions.user_id -> users.id, cascade delete
+User.hasMany(UserPermission, { foreignKey: "user_id", onDelete: "CASCADE" });
+UserPermission.belongsTo(User, { foreignKey: "user_id" });
+
+// user_permissions.granted_by -> users.id
+UserPermission.belongsTo(User, { as: "grantedBy", foreignKey: "granted_by" });
+
 // sessions.user_id -> users.id, cascade delete
 User.hasMany(Session, { foreignKey: "user_id", onDelete: "CASCADE" });
 Session.belongsTo(User, { foreignKey: "user_id" });
@@ -44,15 +53,20 @@ VirtualKey.belongsTo(Project, { foreignKey: "project_id" });
 // virtual_keys.created_by -> users.id
 VirtualKey.belongsTo(User, { as: "creator", foreignKey: "created_by" });
 
+// models.created_by -> users.id
+ProxyModel.belongsTo(User, { as: "creator", foreignKey: "created_by" });
+
 export {
   User,
   Role,
   RolePermission,
   UserRole,
+  UserPermission,
   Session,
   AuditLog,
   Project,
   ProviderCredential,
   VirtualKey,
   RequestLog,
+  ProxyModel,
 };

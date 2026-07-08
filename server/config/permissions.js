@@ -6,6 +6,8 @@ export const PERMISSIONS = {
   VIRTUAL_KEYS_READ: "virtual_keys:read",
   VIRTUAL_KEYS_CREATE: "virtual_keys:create",
   VIRTUAL_KEYS_REVOKE: "virtual_keys:revoke",
+  MODELS_READ: "models:read",
+  MODELS_MANAGE: "models:manage",
   LOGS_READ: "logs:read",
   USAGE_READ: "usage:read",
   GUARDRAILS_MANAGE: "guardrails:manage",
