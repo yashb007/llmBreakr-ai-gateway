@@ -13,6 +13,10 @@ const Project = sequelize.define(
       type: DataTypes.STRING,
       allowNull: false,
     },
+    description: {
+      type: DataTypes.TEXT,
+      allowNull: false,
+    },
     created_by: {
       type: DataTypes.INTEGER,
       allowNull: true,

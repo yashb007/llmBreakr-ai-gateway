@@ -19,3 +19,5 @@ export const superAdminEmail = {
     email : process.env.SUPER_ADMIN_EMAIL,
     name :  process.env.SUPER_ADMIN_NAME,
 };
+
+export const credentialEncryptionKey = process.env.CREDENTIAL_ENCRYPTION_KEY;
