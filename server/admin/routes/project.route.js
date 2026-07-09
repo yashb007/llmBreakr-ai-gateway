@@ -34,7 +34,7 @@ router.get(
  * POST /api/admin/projects
  * Create a project.
  * requires: projects:manage
- * body: { name: string }
+ * body: { name: string, description: string }
  */
 router.post(
   "/",
@@ -45,10 +45,10 @@ router.post(
 
 /**
  * PATCH /api/admin/projects/:id
- * Update a project's name.
+ * Update a project's name/description.
  * requires: projects:manage
  * params: { id: number }
- * body: { name: string }
+ * body: { name?: string, description?: string }
  */
 router.patch(
   "/:id",

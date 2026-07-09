@@ -15,8 +15,8 @@ export const getProject = async (id) => {
   return project;
 };
 
-export const createProject = async ({ name }, actor) => {
-  const project = await Project.create({ name, created_by: actor.id });
+export const createProject = async ({ name, description }, actor) => {
+  const project = await Project.create({ name, description, created_by: actor.id });
 
   await AuditLog.create({
     actor_id: actor.id,
@@ -31,13 +31,14 @@ export const createProject = async ({ name }, actor) => {
   return project;
 };
 
-export const updateProject = async (id, { name }, actor) => {
+export const updateProject = async (id, updates, actor) => {
   const project = await Project.findByPk(id);
   if (!project) {
     throw new APIError({ message: "Project not found", status: httpStatus.NOT_FOUND });
   }
 
-  project.name = name;
+  if (updates.name !== undefined) project.name = updates.name;
+  if (updates.description !== undefined) project.description = updates.description;
   await project.save();
 
   await AuditLog.create({
@@ -47,7 +48,7 @@ export const updateProject = async (id, { name }, actor) => {
     action: "project.update",
     resource_type: "project",
     resource_id: String(project.id),
-    metadata: JSON.stringify({ name }),
+    metadata: JSON.stringify(updates),
     status: "success",
   });
 

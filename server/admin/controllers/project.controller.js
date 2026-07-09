@@ -4,7 +4,7 @@ import * as projectService from "../services/project.service.js";
  * List all projects.
  * @param {import("express").Request} req
  * @param {import("express").Response} res
- * @returns {Promise<void>} 200 - Array<{ id, name, created_by, created_at }>
+ * @returns {Promise<void>} 200 - Array<{ id, name, description, created_by, created_at }>
  */
 export const listProjects = async (req, res) => {
   res.json(await projectService.listProjects());
@@ -14,7 +14,7 @@ export const listProjects = async (req, res) => {
  * Get a single project.
  * @param {import("express").Request} req - req.params.id: number
  * @param {import("express").Response} res
- * @returns {Promise<void>} 200 - { id, name, created_by, created_at }
+ * @returns {Promise<void>} 200 - { id, name, description, created_by, created_at }
  */
 export const getProject = async (req, res) => {
   res.json(await projectService.getProject(req.params.id));
@@ -22,9 +22,9 @@ export const getProject = async (req, res) => {
 
 /**
  * Create a project.
- * @param {import("express").Request} req - req.body: { name }
+ * @param {import("express").Request} req - req.body: { name, description }
  * @param {import("express").Response} res
- * @returns {Promise<void>} 201 - { id, name, created_by, created_at }
+ * @returns {Promise<void>} 201 - { id, name, description, created_by, created_at }
  */
 export const createProject = async (req, res) => {
   const project = await projectService.createProject(req.body, req.user);
@@ -32,10 +32,10 @@ export const createProject = async (req, res) => {
 };
 
 /**
- * Update a project's name.
- * @param {import("express").Request} req - req.params.id: number, req.body: { name }
+ * Update a project's name/description.
+ * @param {import("express").Request} req - req.params.id: number, req.body: { name?, description? }
  * @param {import("express").Response} res
- * @returns {Promise<void>} 200 - { id, name, created_by, created_at }
+ * @returns {Promise<void>} 200 - { id, name, description, created_by, created_at }
  */
 export const updateProject = async (req, res) => {
   res.json(await projectService.updateProject(req.params.id, req.body, req.user));
