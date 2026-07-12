@@ -13,7 +13,7 @@ const ProxyModel = sequelize.define(
       type: DataTypes.STRING,
       allowNull: false,
     },
-    litellm_params: {
+    provider_params: {
       type: DataTypes.JSON,
       allowNull: false,
     },

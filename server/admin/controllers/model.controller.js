@@ -4,7 +4,7 @@ import * as modelService from "../services/model.service.js";
  * List all models registered on the gateway.
  * @param {import("express").Request} req
  * @param {import("express").Response} res
- * @returns {Promise<void>} 200 - Array<{ id, model_name, litellm_params, blocked, created_by, created_at }>
+ * @returns {Promise<void>} 200 - Array<{ id, model_name, provider_params, blocked, created_by, created_at }>
  */
 export const listModels = async (req, res) => {
   res.json(await modelService.listModels());
@@ -14,7 +14,7 @@ export const listModels = async (req, res) => {
  * Get a single model.
  * @param {import("express").Request} req - req.params.id: number
  * @param {import("express").Response} res
- * @returns {Promise<void>} 200 - { id, model_name, litellm_params, blocked, created_by, created_at }
+ * @returns {Promise<void>} 200 - { id, model_name, provider_params, blocked, created_by, created_at }
  */
 export const getModel = async (req, res) => {
   res.json(await modelService.getModel(req.params.id));
@@ -22,9 +22,9 @@ export const getModel = async (req, res) => {
 
 /**
  * Register a model.
- * @param {import("express").Request} req - req.body: { model_name, litellm_params }
+ * @param {import("express").Request} req - req.body: { model_name, provider_params }
  * @param {import("express").Response} res
- * @returns {Promise<void>} 201 - { id, model_name, litellm_params, blocked, created_by, created_at }
+ * @returns {Promise<void>} 201 - { id, model_name, provider_params, blocked, created_by, created_at }
  */
 export const createModel = async (req, res) => {
   const model = await modelService.createModel(req.body, req.user);
@@ -33,9 +33,9 @@ export const createModel = async (req, res) => {
 
 /**
  * Update a model's name/params, or block/unblock it.
- * @param {import("express").Request} req - req.params.id: number, req.body: { model_name?, litellm_params?, blocked? }
+ * @param {import("express").Request} req - req.params.id: number, req.body: { model_name?, provider_params?, blocked? }
  * @param {import("express").Response} res
- * @returns {Promise<void>} 200 - { id, model_name, litellm_params, blocked, created_by, created_at }
+ * @returns {Promise<void>} 200 - { id, model_name, provider_params, blocked, created_by, created_at }
  */
 export const updateModel = async (req, res) => {
   res.json(await modelService.updateModel(req.params.id, req.body, req.user));

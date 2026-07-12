@@ -1,10 +1,10 @@
 import Joi from "joi";
 
-const litellmParams = Joi.object({
+const providerParams = Joi.object({
   provider: Joi.string().required(),
   model: Joi.string().required(),
   api_base: Joi.string().uri().optional(),
-  api_key: Joi.string().optional(),
+  provider_credential_id: Joi.number().integer().required(),
 })
   .unknown(true)
   .required();
@@ -18,7 +18,7 @@ export const getModel = {
 export const createModel = {
   body: Joi.object({
     model_name: Joi.string().required(),
-    litellm_params: litellmParams,
+    provider_params: providerParams,
   }),
 };
 
@@ -28,7 +28,7 @@ export const updateModel = {
   }),
   body: Joi.object({
     model_name: Joi.string(),
-    litellm_params: litellmParams.optional(),
+    provider_params: providerParams.optional(),
     blocked: Joi.boolean(),
   }).min(1),
 };

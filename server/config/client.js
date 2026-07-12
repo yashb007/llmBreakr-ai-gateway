@@ -12,8 +12,8 @@ export const connectClients = async () => {
 
   await seedSuperAdmin();
 
-//   await redisClient.connect();
-//   console.info("redis connection established");
+  await redisClient.connect();
+  console.info("redis connection established");
 };
 
 export { sequelize, redisClient };

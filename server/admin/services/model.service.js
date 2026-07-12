@@ -19,8 +19,8 @@ export const getModel = async (id) => {
   return findModelOr404(id);
 };
 
-export const createModel = async ({ model_name, litellm_params }, actor) => {
-  const model = await ProxyModel.create({ model_name, litellm_params, created_by: actor.id });
+export const createModel = async ({ model_name, provider_params }, actor) => {
+  const model = await ProxyModel.create({ model_name, provider_params, created_by: actor.id });
 
   await AuditLog.create({
     actor_id: actor.id,
@@ -39,7 +39,7 @@ export const updateModel = async (id, updates, actor) => {
   const model = await findModelOr404(id);
 
   if (updates.model_name !== undefined) model.model_name = updates.model_name;
-  if (updates.litellm_params !== undefined) model.litellm_params = updates.litellm_params;
+  if (updates.provider_params !== undefined) model.provider_params = updates.provider_params;
   if (updates.blocked !== undefined) model.blocked = updates.blocked;
   await model.save();
 

@@ -34,7 +34,7 @@ router.get(
  * POST /api/admin/models
  * Register a model.
  * requires: models:manage
- * body: { model_name: string, litellm_params: { provider: string, model: string, api_base?: string, api_key?: string, ... } }
+ * body: { model_name: string, provider_params: { provider: string, model: string, api_base?: string, api_key?: string, ... } }
  */
 router.post(
   "/",
@@ -48,7 +48,7 @@ router.post(
  * Update a model's name/params, or set blocked: true/false to disable it without deleting it.
  * requires: models:manage
  * params: { id: number }
- * body: { model_name?: string, litellm_params?: object, blocked?: boolean }
+ * body: { model_name?: string, provider_params?: object, blocked?: boolean }
  */
 router.patch(
   "/:id",
