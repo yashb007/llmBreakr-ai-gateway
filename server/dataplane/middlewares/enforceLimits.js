@@ -1,6 +1,7 @@
 import httpStatus from "http-status";
 import redisClient from "../../config/redis.js";
 import APIError from "../../utils/APIError.js";
+import { logRequest } from "../utils/requestLogger.js";
 
 const rpmKey = (virtualKeyId) => `rl:${virtualKeyId}:${Math.floor(Date.now() / 60000)}`;
 const budgetKey = (virtualKeyId) => `budget:${virtualKeyId}:${new Date().toISOString().slice(0, 10)}`;
@@ -24,6 +25,13 @@ export const enforceLimits = async (req, res, next) => {
       const count = await redisClient.incr(key);
       if (count === 1) await redisClient.expire(key, 60);
       if (count > virtualKey.rpm_limit) {
+        await logRequest({
+          virtualKeyId: virtualKey.id,
+          projectId: req.project?.id,
+          model: req.proxyModel?.model_name,
+          status: httpStatus.TOO_MANY_REQUESTS,
+          blockedBy: "rate_limit",
+        });
         throw new APIError({ message: "Rate limit exceeded", status: httpStatus.TOO_MANY_REQUESTS });
       }
     }
@@ -31,6 +39,13 @@ export const enforceLimits = async (req, res, next) => {
     if (virtualKey.daily_budget_usd) {
       const spent = parseFloat((await redisClient.get(budgetKey(virtualKey.id))) || "0");
       if (spent >= virtualKey.daily_budget_usd) {
+        await logRequest({
+          virtualKeyId: virtualKey.id,
+          projectId: req.project?.id,
+          model: req.proxyModel?.model_name,
+          status: httpStatus.TOO_MANY_REQUESTS,
+          blockedBy: "budget",
+        });
         throw new APIError({ message: "Daily budget exceeded", status: httpStatus.TOO_MANY_REQUESTS });
       }
     }

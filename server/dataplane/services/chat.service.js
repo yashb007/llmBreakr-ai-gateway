@@ -1,10 +1,10 @@
 import httpStatus from "http-status";
 import ProviderCredential from "../../models/providerCredential.model.js";
-import RequestLog from "../../models/requestLog.model.js";
 import APIError from "../../utils/APIError.js";
 import { decrypt } from "../../utils/encryption.js";
 import { estimateCostUsd } from "../../utils/pricing.js";
 import { incrementBudget } from "../middlewares/enforceLimits.js";
+import { logRequest as logRequestRow } from "../utils/requestLogger.js";
 import * as openaiProvider from "../../providers/openai.provider.js";
 import * as anthropicProvider from "../../providers/anthropic.provider.js";
 import * as geminiProvider from "../../providers/gemini.provider.js";
@@ -16,16 +16,16 @@ const PROVIDERS = {
 };
 
 const logRequest = ({ virtualKey, project, provider, model, promptTokens, completionTokens, latencyMs, status, error }) =>
-  RequestLog.create({
-    virtual_key_id: virtualKey.id,
-    project_id: project?.id ?? null,
+  logRequestRow({
+    virtualKeyId: virtualKey.id,
+    projectId: project?.id,
     provider,
     model,
-    prompt_tokens: promptTokens ?? null,
-    completion_tokens: completionTokens ?? null,
-    latency_ms: latencyMs,
+    promptTokens,
+    completionTokens,
+    latencyMs,
     status,
-    error: error ?? null,
+    error,
   });
 
 // Reads the SSE stream chunk-by-chunk, forwarding each raw chunk to `res` as it

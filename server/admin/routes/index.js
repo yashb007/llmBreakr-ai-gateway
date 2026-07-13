@@ -7,6 +7,8 @@ import permissionRoutes from "./permission.route.js";
 import modelRoutes from "./model.route.js";
 import providerCredentialRoutes from "./providerCredential.route.js";
 import virtualKeyRoutes from "./virtualKey.route.js";
+import logRoutes from "./log.route.js";
+import usageRoutes from "./usage.route.js";
 
 const router = express.Router();
 
@@ -23,5 +25,7 @@ router.use("/permissions", permissionRoutes);
 router.use("/models", modelRoutes);
 router.use("/provider-creds", providerCredentialRoutes);
 router.use("/virtual-keys", virtualKeyRoutes);
+router.use("/logs", logRoutes);
+router.use("/usage", usageRoutes);
 
 export default router;

@@ -56,6 +56,14 @@ VirtualKey.belongsTo(User, { as: "creator", foreignKey: "created_by" });
 // models.created_by -> users.id
 ProxyModel.belongsTo(User, { as: "creator", foreignKey: "created_by" });
 
+// request_logs.project_id -> projects.id
+Project.hasMany(RequestLog, { foreignKey: "project_id" });
+RequestLog.belongsTo(Project, { foreignKey: "project_id" });
+
+// request_logs.virtual_key_id -> virtual_keys.id
+VirtualKey.hasMany(RequestLog, { foreignKey: "virtual_key_id" });
+RequestLog.belongsTo(VirtualKey, { foreignKey: "virtual_key_id" });
+
 export {
   User,
   Role,
