@@ -42,6 +42,16 @@ export const updateVirtualKey = async (req, res) => {
 };
 
 /**
+ * Approve a pending virtual key so it can authenticate data-plane requests.
+ * @param {import("express").Request} req - req.params.id: number
+ * @param {import("express").Response} res
+ * @returns {Promise<void>} 200 - { id, ..., approved: true, approved_by, approved_at }
+ */
+export const approveVirtualKey = async (req, res) => {
+  res.json(await virtualKeyService.approveVirtualKey(req.params.id, req.user));
+};
+
+/**
  * Revoke a virtual key (soft kill-switch; the row is kept for audit/usage history).
  * @param {import("express").Request} req - req.params.id: number
  * @param {import("express").Response} res

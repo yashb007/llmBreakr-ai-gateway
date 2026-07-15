@@ -47,6 +47,19 @@ const VirtualKey = sequelize.define(
       allowNull: false,
       defaultValue: false,
     },
+    approved: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+    },
+    approved_by: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+    },
+    approved_at: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
     created_by: {
       type: DataTypes.INTEGER,
       allowNull: true,

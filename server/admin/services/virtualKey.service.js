@@ -16,6 +16,9 @@ const publicVirtualKey = (key) => ({
   daily_budget_usd: key.daily_budget_usd,
   expires_at: key.expires_at,
   revoked: key.revoked,
+  approved: key.approved,
+  approved_by: key.approved_by,
+  approved_at: key.approved_at,
   created_by: key.created_by,
   created_at: key.created_at,
 });
@@ -48,6 +51,9 @@ export const createVirtualKey = async (
 
   const { secret, prefix } = generateVirtualKey();
 
+  // Every new key starts unapproved regardless of who creates it — it can't
+  // authenticate data-plane requests (see virtualKeyAuth.js) until someone
+  // holding virtual_keys:manage approves it.
   const key = await VirtualKey.create({
     project_id,
     name,
@@ -57,6 +63,7 @@ export const createVirtualKey = async (
     rpm_limit,
     daily_budget_usd,
     expires_at,
+    approved: false,
     created_by: actor.id,
   });
 
@@ -94,6 +101,30 @@ export const updateVirtualKey = async (id, updates, actor) => {
     resource_type: "virtual_key",
     resource_id: String(key.id),
     metadata: JSON.stringify(updates),
+    status: "success",
+  });
+
+  return publicVirtualKey(key);
+};
+
+export const approveVirtualKey = async (id, actor) => {
+  const key = await findVirtualKeyOr404(id);
+  if (key.approved) {
+    throw new APIError({ message: "Key is already approved", status: httpStatus.CONFLICT });
+  }
+
+  key.approved = true;
+  key.approved_by = actor.id;
+  key.approved_at = new Date();
+  await key.save();
+
+  await AuditLog.create({
+    actor_id: actor.id,
+    actor_email: actor.email,
+    actor_type: "user",
+    action: "virtual_key.approve",
+    resource_type: "virtual_key",
+    resource_id: String(key.id),
     status: "success",
   });
 

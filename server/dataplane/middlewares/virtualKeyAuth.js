@@ -29,6 +29,19 @@ export const virtualKeyAuth = async (req, res, next) => {
       });
       throw new APIError({ message: "API key has been revoked", status: httpStatus.UNAUTHORIZED });
     }
+    if (!virtualKey.approved) {
+      await logRequest({
+        virtualKeyId: virtualKey.id,
+        projectId: virtualKey.project_id,
+        model: req.body?.model,
+        status: httpStatus.UNAUTHORIZED,
+        blockedBy: "pending_approval",
+      });
+      throw new APIError({
+        message: "API key is pending approval",
+        status: httpStatus.UNAUTHORIZED,
+      });
+    }
     if (virtualKey.expires_at && virtualKey.expires_at < new Date()) {
       await logRequest({
         virtualKeyId: virtualKey.id,

@@ -58,6 +58,19 @@ router.patch(
 );
 
 /**
+ * POST /api/admin/virtual-keys/:id/approve
+ * Approve a pending virtual key so it can authenticate data-plane requests.
+ * requires: virtual_keys:manage
+ * params: { id: number }
+ */
+router.post(
+  "/:id/approve",
+  authorize(PERMISSIONS.VIRTUAL_KEYS_MANAGE),
+  validate(virtualKeyValidation.getVirtualKey),
+  virtualKeyController.approveVirtualKey
+);
+
+/**
  * POST /api/admin/virtual-keys/:id/revoke
  * Revoke a virtual key (soft kill-switch; the row is kept for audit/usage history).
  * requires: virtual_keys:revoke
