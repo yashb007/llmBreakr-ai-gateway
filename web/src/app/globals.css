@@ -1,0 +1,123 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-bg: #131519;
+  --color-panel: #1a1d24;
+  --color-panel2: #21252f;
+  --color-raise: #282d3a;
+  --color-border: rgba(255, 255, 255, 0.07);
+  --color-border2: rgba(255, 255, 255, 0.12);
+  --color-tx: #eef0f4;
+  --color-txm: #98a0ad;
+  --color-txd: #616873;
+  --color-accent: #7b74ff;
+  --color-accent-soft: rgba(123, 116, 255, 0.14);
+  --color-accent2: #37d69a;
+  --color-amber: #f6b64b;
+  --color-red: #f2585f;
+  --color-blue: #54a0f5;
+  --color-openai: #10a37f;
+  --color-anthropic: #d79a6e;
+  --color-gemini: #5b8def;
+
+  /* Chart strokes and the scrollbar thumb are drawn as raw rgba() (inline
+     SVG attributes / non-Tailwind CSS), so they don't pick up Tailwind's
+     color tokens above — routed through their own vars instead, flipped
+     alongside everything else under [data-theme="light"] below. */
+  --chart-grid: rgba(255, 255, 255, 0.055);
+  --chart-hairline: rgba(255, 255, 255, 0.25);
+  --scrollbar-thumb: rgba(255, 255, 255, 0.09);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.16);
+}
+
+:root[data-theme="light"] {
+  --color-bg: #f2f3f6;
+  --color-panel: #ffffff;
+  --color-panel2: #f1f2f6;
+  --color-raise: #e7e9ef;
+  --color-border: rgba(15, 23, 42, 0.09);
+  --color-border2: rgba(15, 23, 42, 0.16);
+  --color-tx: #15171c;
+  --color-txm: #565f6d;
+  --color-txd: #8a92a0;
+
+  --chart-grid: rgba(15, 23, 42, 0.08);
+  --chart-hairline: rgba(15, 23, 42, 0.3);
+  --scrollbar-thumb: rgba(15, 23, 42, 0.14);
+  --scrollbar-thumb-hover: rgba(15, 23, 42, 0.24);
+
+  /* A few surfaces reach for raw white/N Tailwind opacity utilities as a
+     "tint of foreground over background" (hover highlights, hairline
+     dividers) rather than the border/raise tokens above — harmless on a
+     dark bg since white already reads as the foreground tint there, but on
+     a light bg the same utilities need to flip to a dark tint instead.
+     Same specificity as the plain Tailwind utilities, but the attribute
+     selector makes these win without !important. */
+  --tint-weak: rgba(15, 23, 42, 0.04);
+  --tint-mid: rgba(15, 23, 42, 0.06);
+  --tint-strong: rgba(15, 23, 42, 0.1);
+}
+
+:root[data-theme="light"] .bg-white\/10 {
+  background-color: var(--tint-strong);
+}
+:root[data-theme="light"] .bg-white\/6 {
+  background-color: var(--tint-mid);
+}
+:root[data-theme="light"] .border-white\/4 {
+  border-color: rgba(15, 23, 42, 0.08);
+}
+:root[data-theme="light"] .hover\:bg-white\/2:hover {
+  background-color: var(--tint-weak);
+}
+:root[data-theme="light"] .hover\:bg-white\/5:hover {
+  background-color: var(--tint-mid);
+}
+
+body {
+  @apply bg-bg text-tx font-sans antialiased;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+  background-clip: padding-box;
+}
+
+@keyframes floatup {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes caret-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.animate-floatup {
+  animation: floatup 0.3s ease;
+}
+.animate-caret {
+  animation: caret-pulse 1s infinite;
+}
