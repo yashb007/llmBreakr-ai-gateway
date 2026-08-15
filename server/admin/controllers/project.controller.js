@@ -7,7 +7,18 @@ import * as projectService from "../services/project.service.js";
  * @returns {Promise<void>} 200 - Array<{ id, name, description, created_by, created_at }>
  */
 export const listProjects = async (req, res) => {
-  res.json(await projectService.listProjects());
+  res.json(await projectService.listProjects(req.user));
+};
+
+/**
+ * Lightweight { id, name } list of every project, unscoped — used to populate
+ * project pickers (e.g. the virtual key creation form) without requiring projects:read.
+ * @param {import("express").Request} req
+ * @param {import("express").Response} res
+ * @returns {Promise<void>} 200 - Array<{ id, name }>
+ */
+export const listProjectOptions = async (req, res) => {
+  res.json(await projectService.listProjectOptions());
 };
 
 /**
@@ -17,7 +28,7 @@ export const listProjects = async (req, res) => {
  * @returns {Promise<void>} 200 - { id, name, description, created_by, created_at }
  */
 export const getProject = async (req, res) => {
-  res.json(await projectService.getProject(req.params.id));
+  res.json(await projectService.getProject(req.params.id, req.user));
 };
 
 /**

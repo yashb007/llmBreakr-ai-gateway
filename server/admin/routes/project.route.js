@@ -12,14 +12,26 @@ router.use(authenticate);
 
 /**
  * GET /api/admin/projects
- * List all projects.
+ * List projects. Super admins see all; everyone else only sees projects
+ * created by themselves or by another user who shares at least one role
+ * with them (team-scoped by role).
  * requires: projects:read
  */
 router.get("/", authorize(PERMISSIONS.PROJECTS_READ), projectController.listProjects);
 
 /**
+ * GET /api/admin/projects/options
+ * Lightweight { id, name } list of every project, unscoped by role and not
+ * gated by projects:read — lets anyone who can create a virtual key pick a
+ * target project even if they can't otherwise see project details. Must stay
+ * ahead of GET /:id so "options" is never matched as an id param.
+ */
+router.get("/options", projectController.listProjectOptions);
+
+/**
  * GET /api/admin/projects/:id
- * Get a single project.
+ * Get a single project. 404s (not 403) if it's outside the caller's
+ * role-scoped access — see GET / above.
  * requires: projects:read
  * params: { id: number }
  */
@@ -45,7 +57,8 @@ router.post(
 
 /**
  * PATCH /api/admin/projects/:id
- * Update a project's name/description.
+ * Update a project's name/description. 404s if outside the caller's
+ * role-scoped access (see GET / above).
  * requires: projects:manage
  * params: { id: number }
  * body: { name?: string, description?: string }
@@ -59,7 +72,7 @@ router.patch(
 
 /**
  * DELETE /api/admin/projects/:id
- * Delete a project.
+ * Delete a project. 404s if outside the caller's role-scoped access (see GET / above).
  * requires: projects:manage
  * params: { id: number }
  */

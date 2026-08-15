@@ -9,7 +9,9 @@ import Project from "./project.model.js";
 import ProviderCredential from "./providerCredential.model.js";
 import VirtualKey from "./virtualKey.model.js";
 import RequestLog from "./requestLog.model.js";
-import ProxyModel from "./proxyModel.model.js";
+import ProviderModel from "./providerModel.model.js";
+import ProjectProviderCredential from "./projectProviderCredential.model.js";
+import ProjectModel from "./projectModel.model.js";
 
 // users.created_by -> users.id (self-reference)
 User.belongsTo(User, { as: "creator", foreignKey: "created_by" });
@@ -53,8 +55,29 @@ VirtualKey.belongsTo(Project, { foreignKey: "project_id" });
 // virtual_keys.created_by -> users.id
 VirtualKey.belongsTo(User, { as: "creator", foreignKey: "created_by" });
 
-// models.created_by -> users.id
-ProxyModel.belongsTo(User, { as: "creator", foreignKey: "created_by" });
+// project_provider_credentials.project_id -> projects.id, cascade delete
+Project.hasMany(ProjectProviderCredential, { foreignKey: "project_id", onDelete: "CASCADE" });
+ProjectProviderCredential.belongsTo(Project, { foreignKey: "project_id" });
+
+// project_provider_credentials.provider_credential_id -> provider_credentials.id
+// RESTRICT: a credential still assigned to a project can't be deleted out from under it
+// (see providerCredential.service.js's in-use guard).
+ProviderCredential.hasMany(ProjectProviderCredential, { foreignKey: "provider_credential_id", onDelete: "RESTRICT" });
+ProjectProviderCredential.belongsTo(ProviderCredential, { as: "credential", foreignKey: "provider_credential_id" });
+
+// project_provider_credentials.created_by -> users.id
+ProjectProviderCredential.belongsTo(User, { as: "creator", foreignKey: "created_by" });
+
+// project_models.project_id -> projects.id, cascade delete
+Project.hasMany(ProjectModel, { foreignKey: "project_id", onDelete: "CASCADE" });
+ProjectModel.belongsTo(Project, { foreignKey: "project_id" });
+
+// project_models.provider_model_id -> provider_models.id
+ProviderModel.hasMany(ProjectModel, { foreignKey: "provider_model_id", onDelete: "RESTRICT" });
+ProjectModel.belongsTo(ProviderModel, { as: "providerModel", foreignKey: "provider_model_id" });
+
+// project_models.created_by -> users.id
+ProjectModel.belongsTo(User, { as: "creator", foreignKey: "created_by" });
 
 // request_logs.project_id -> projects.id
 Project.hasMany(RequestLog, { foreignKey: "project_id" });
@@ -76,5 +99,7 @@ export {
   ProviderCredential,
   VirtualKey,
   RequestLog,
-  ProxyModel,
+  ProviderModel,
+  ProjectProviderCredential,
+  ProjectModel,
 };

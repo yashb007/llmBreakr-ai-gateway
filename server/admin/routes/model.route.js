@@ -12,14 +12,14 @@ router.use(authenticate);
 
 /**
  * GET /api/admin/models
- * List all models registered on the gateway (the DB-stored equivalent of config.yaml's model_list).
+ * List the provider model catalog (auto-populated from provider credential sync).
  * requires: models:read
  */
 router.get("/", authorize(PERMISSIONS.MODELS_READ), modelController.listModels);
 
 /**
  * GET /api/admin/models/:id
- * Get a single model.
+ * Get a single catalog model.
  * requires: models:read
  * params: { id: number }
  */
@@ -31,24 +31,11 @@ router.get(
 );
 
 /**
- * POST /api/admin/models
- * Register a model.
- * requires: models:manage
- * body: { model_name: string, provider_params: { provider: string, model: string, api_base?: string, api_key?: string, ... } }
- */
-router.post(
-  "/",
-  authorize(PERMISSIONS.MODELS_MANAGE),
-  validate(modelValidation.createModel),
-  modelController.createModel
-);
-
-/**
  * PATCH /api/admin/models/:id
- * Update a model's name/params, or set blocked: true/false to disable it without deleting it.
+ * Set a catalog model's per-million-token pricing.
  * requires: models:manage
  * params: { id: number }
- * body: { model_name?: string, provider_params?: object, blocked?: boolean }
+ * body: { input_price_per_million?: number, output_price_per_million?: number, cache_write_price_per_million?: number, cache_read_price_per_million?: number }
  */
 router.patch(
   "/:id",
@@ -59,7 +46,7 @@ router.patch(
 
 /**
  * DELETE /api/admin/models/:id
- * Delete a model.
+ * Delete a catalog model. Fails with 409 if any project still has it allowed.
  * requires: models:manage
  * params: { id: number }
  */

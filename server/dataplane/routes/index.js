@@ -15,7 +15,7 @@ router.get("/status", (req, res) => res.send("OK"));
  * POST v1/chat/completions
  * Forwards an OpenAI-style chat completion request through a virtual key.
  * requires: Authorization: Bearer <virtual key>
- * body: OpenAI chat completion request (model must match a configured ProxyModel)
+ * body: OpenAI chat completion request (model must be a raw provider model id allowed for the key's project)
  */
 router.post(
   "/v1/chat/completions",

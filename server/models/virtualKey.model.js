@@ -26,16 +26,20 @@ const VirtualKey = sequelize.define(
       type: DataTypes.STRING,
       allowNull: false,
     },
-    allowed_models: {
-      type: DataTypes.TEXT,
-      allowNull: true,
-    },
     rpm_limit: {
       type: DataTypes.INTEGER,
       allowNull: true,
     },
     daily_budget_usd: {
       type: DataTypes.DOUBLE,
+      allowNull: true,
+    },
+    daily_token_limit: {
+      type: DataTypes.BIGINT,
+      allowNull: true,
+    },
+    monthly_token_limit: {
+      type: DataTypes.BIGINT,
       allowNull: true,
     },
     expires_at: {

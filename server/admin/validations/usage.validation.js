@@ -6,5 +6,7 @@ export const getUsage = {
   query: Joi.object({
     range: Joi.string().valid("24h", "7d", "30d"),
     project_id: Joi.number().integer(),
+    virtual_key_id: Joi.number().integer(),
+    bucket: Joi.string().valid("day"),
   }),
 };

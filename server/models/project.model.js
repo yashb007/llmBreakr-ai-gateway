@@ -17,6 +17,22 @@ const Project = sequelize.define(
       type: DataTypes.TEXT,
       allowNull: false,
     },
+    daily_budget_usd: {
+      type: DataTypes.DOUBLE,
+      allowNull: true,
+    },
+    rpm_limit: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+    },
+    daily_token_limit: {
+      type: DataTypes.BIGINT,
+      allowNull: true,
+    },
+    monthly_token_limit: {
+      type: DataTypes.BIGINT,
+      allowNull: true,
+    },
     created_by: {
       type: DataTypes.INTEGER,
       allowNull: true,

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="470" height="100" viewBox="0 0 470 100" role="img" aria-label="llmBreakr">
+  <g fill="#7C6CFF" stroke="#7C6CFF" stroke-width="7" stroke-linecap="round" fill-rule="nonzero">
+    <path d="M18 22L44 46M18 50h26M18 78L44 54" fill="none"></path>
+    <path d="M56 46L82 22M56 50h26M56 54L82 78" fill="none"></path>
+    <rect x="7" y="15" width="14" height="14" rx="3" stroke="none"></rect>
+    <rect x="7" y="43" width="14" height="14" rx="3" stroke="none"></rect>
+    <rect x="7" y="71" width="14" height="14" rx="3" stroke="none"></rect>
+    <circle cx="86" cy="22" r="7.5" stroke="none"></circle>
+    <circle cx="86" cy="50" r="7.5" stroke="none"></circle>
+    <circle cx="86" cy="78" r="7.5" stroke="none"></circle>
+    <path d="M50 36L64 50 50 64 36 50z" stroke="none"></path>
+  </g>
+  <text x="124" y="74" font-family="Space Grotesk, Inter, Helvetica Neue, Arial, sans-serif" font-size="72" font-weight="700" letter-spacing="-2.4"><tspan fill="#7A8294">llm</tspan><tspan fill="#F4F6FB">Breakr</tspan></text>
+</svg>

@@ -1,8 +1,10 @@
 import httpStatus from "http-status";
 import ProviderCredential from "../../models/providerCredential.model.js";
+import ProjectProviderCredential from "../../models/projectProviderCredential.model.js";
 import AuditLog from "../../models/auditLog.model.js";
 import APIError from "../../utils/APIError.js";
 import { encrypt } from "../../utils/encryption.js";
+import { syncModelsForCredential } from "./model.service.js";
 
 // The raw API key is never returned once stored — only this metadata shape.
 const publicCredential = (credential) => ({
@@ -50,6 +52,16 @@ export const createProviderCredential = async ({ provider, name, description, ap
     status: "success",
   });
 
+  // Best-effort: pulling the provider's model catalog is a convenience, not
+  // a requirement for the credential to be usable — a fetch failure (bad
+  // key, network blip, unsupported provider) shouldn't fail credential
+  // creation itself.
+  try {
+    await syncModelsForCredential(credential, actor);
+  } catch (error) {
+    console.error(`Model sync failed for provider credential ${credential.id}: ${error.message}`);
+  }
+
   return publicCredential(credential);
 };
 
@@ -78,6 +90,17 @@ export const updateProviderCredential = async (id, updates, actor) => {
 
 export const deleteProviderCredential = async (id, actor) => {
   const credential = await findCredentialOr404(id);
+
+  // project_provider_credentials.provider_credential_id is a real FK —
+  // without this check the DB would just throw a raw constraint error.
+  const inUseCount = await ProjectProviderCredential.count({ where: { provider_credential_id: id } });
+  if (inUseCount > 0) {
+    throw new APIError({
+      message: `Cannot delete: ${inUseCount} project(s) still use this credential`,
+      status: httpStatus.CONFLICT,
+    });
+  }
+
   await credential.destroy();
 
   await AuditLog.create({

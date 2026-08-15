@@ -34,10 +34,25 @@ const usageFromGemini = (u = {}) => ({
   total_tokens: u.totalTokenCount ?? (u.promptTokenCount ?? 0) + (u.candidatesTokenCount ?? 0),
 });
 
+// Gemini's cachedContentTokenCount is a SUBSET of promptTokenCount (not
+// additive), same as OpenAI's cached_tokens — subtract it out so
+// prompt_tokens means "billed at the full input rate" only. Explicit context
+// caching has no separate "write" charge exposed on a chat-completion call
+// (creating a cache is a distinct API this gateway doesn't call), so that
+// category is always 0 here.
+export const extractBillingUsage = (usage = {}) => {
+  const cacheRead = usage.cachedContentTokenCount ?? 0;
+  return {
+    prompt_tokens: Math.max((usage.promptTokenCount ?? 0) - cacheRead, 0),
+    completion_tokens: usage.candidatesTokenCount ?? 0,
+    cache_write_tokens: 0,
+    cache_read_tokens: cacheRead,
+  };
+};
+
 const toOpenAiResponse = (geminiJson, model) => {
   const candidate = geminiJson.candidates?.[0];
   const text = (candidate?.content?.parts || []).map((part) => part.text || "").join("");
-  const usage = usageFromGemini(geminiJson.usageMetadata);
 
   return {
     json: {
@@ -52,9 +67,9 @@ const toOpenAiResponse = (geminiJson, model) => {
           finish_reason: candidate?.finishReason === "MAX_TOKENS" ? "length" : "stop",
         },
       ],
-      usage,
+      usage: usageFromGemini(geminiJson.usageMetadata),
     },
-    usage,
+    usage: extractBillingUsage(geminiJson.usageMetadata),
   };
 };
 
@@ -78,6 +93,7 @@ const translateGeminiStream = (upstream, { model }) => {
   let buffer = "";
   let promptTokens = 0;
   let completionTokens = 0;
+  let cachedTokens = 0;
   let sentRole = false;
 
   return new ReadableStream({
@@ -92,9 +108,15 @@ const translateGeminiStream = (upstream, { model }) => {
               delta: {},
               finishReason: "stop",
               usage: {
+                // Client-facing fields, unchanged.
                 prompt_tokens: promptTokens,
                 completion_tokens: completionTokens,
                 total_tokens: promptTokens + completionTokens,
+                // Gemini-native names, additive extras for extractBillingUsage —
+                // same names the non-streaming raw usageMetadata uses.
+                promptTokenCount: promptTokens,
+                candidatesTokenCount: completionTokens,
+                cachedContentTokenCount: cachedTokens,
               },
             })
           )
@@ -129,6 +151,7 @@ const translateGeminiStream = (upstream, { model }) => {
         if (parsed.usageMetadata) {
           promptTokens = parsed.usageMetadata.promptTokenCount ?? promptTokens;
           completionTokens = parsed.usageMetadata.candidatesTokenCount ?? completionTokens;
+          cachedTokens = parsed.usageMetadata.cachedContentTokenCount ?? cachedTokens;
         }
       }
     },
@@ -185,4 +208,40 @@ export const createChatCompletion = async ({ apiKey, model, body, apiBase }) => 
 
   const json = await response.json();
   return toOpenAiResponse(json, model);
+};
+
+/**
+ * Lists every model id available to this API key, paging through the full catalog.
+ * @param {{ apiKey: string, apiBase?: string }} params
+ * @returns {Promise<string[]>}
+ */
+export const listModels = async ({ apiKey, apiBase }) => {
+  const base = (apiBase || DEFAULT_API_BASE).replace(/\/$/, "");
+  const ids = [];
+  let pageToken;
+
+  for (;;) {
+    const url = new URL(`${base}/models`);
+    url.searchParams.set("key", apiKey);
+    url.searchParams.set("pageSize", "1000");
+    if (pageToken) url.searchParams.set("pageToken", pageToken);
+
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      throw new APIError({
+        message: await readErrorMessage(response),
+        status: response.status || httpStatus.BAD_GATEWAY,
+      });
+    }
+
+    const json = await response.json();
+    // Gemini names models "models/gemini-1.5-pro" — strip the prefix so the
+    // id matches what createChatCompletion's `model` param expects.
+    ids.push(...(json.models || []).map((model) => model.name.replace(/^models\//, "")));
+    pageToken = json.nextPageToken;
+    if (!pageToken) break;
+  }
+
+  return ids;
 };

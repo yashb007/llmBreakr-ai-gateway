@@ -21,3 +21,5 @@ export const superAdminEmail = {
 };
 
 export const credentialEncryptionKey = process.env.CREDENTIAL_ENCRYPTION_KEY;
+
+export const jwtSecret = process.env.JWT_SECRET;

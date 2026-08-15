@@ -35,12 +35,23 @@ const usageFromAnthropic = (u = {}) => ({
   total_tokens: (u.input_tokens ?? 0) + (u.output_tokens ?? 0),
 });
 
+// Unlike OpenAI, Anthropic's cache fields are separate, mutually-exclusive
+// pools from input_tokens (not a subset of it) — input_tokens is already the
+// non-cached count. Reads Anthropic's own field names directly, since both
+// the raw non-streaming response and the streaming translator below populate
+// those same names on whatever usage object reaches here.
+export const extractBillingUsage = (usage = {}) => ({
+  prompt_tokens: usage.input_tokens ?? 0,
+  completion_tokens: usage.output_tokens ?? 0,
+  cache_write_tokens: usage.cache_creation_input_tokens ?? 0,
+  cache_read_tokens: usage.cache_read_input_tokens ?? 0,
+});
+
 const toOpenAiResponse = (anthropicJson, model) => {
   const text = (anthropicJson.content || [])
     .filter((block) => block.type === "text")
     .map((block) => block.text)
     .join("");
-  const usage = usageFromAnthropic(anthropicJson.usage);
 
   return {
     json: {
@@ -55,9 +66,12 @@ const toOpenAiResponse = (anthropicJson, model) => {
           finish_reason: anthropicJson.stop_reason === "max_tokens" ? "length" : "stop",
         },
       ],
-      usage,
+      // Client-facing usage stays the flat OpenAI-compatible shape,
+      // unchanged — billing usage (with the cache breakdown) is computed
+      // separately below, from the raw Anthropic usage object.
+      usage: usageFromAnthropic(anthropicJson.usage),
     },
-    usage,
+    usage: extractBillingUsage(anthropicJson.usage),
   };
 };
 
@@ -81,6 +95,8 @@ const translateAnthropicStream = (upstream, { model }) => {
   let buffer = "";
   let inputTokens = 0;
   let outputTokens = 0;
+  let cacheCreationTokens = 0;
+  let cacheReadTokens = 0;
   let sentRole = false;
 
   return new ReadableStream({
@@ -95,9 +111,17 @@ const translateAnthropicStream = (upstream, { model }) => {
               delta: {},
               finishReason: "stop",
               usage: {
+                // Client-facing fields, unchanged from before cache tracking existed.
                 prompt_tokens: inputTokens,
                 completion_tokens: outputTokens,
                 total_tokens: inputTokens + outputTokens,
+                // Anthropic-native names, additive extras an OpenAI-compatible
+                // client just ignores — this is what extractBillingUsage reads,
+                // the same field names the non-streaming raw response uses.
+                input_tokens: inputTokens,
+                output_tokens: outputTokens,
+                cache_creation_input_tokens: cacheCreationTokens,
+                cache_read_input_tokens: cacheReadTokens,
               },
             })
           )
@@ -123,7 +147,10 @@ const translateAnthropicStream = (upstream, { model }) => {
         }
 
         if (parsed.type === "message_start") {
-          inputTokens = parsed.message?.usage?.input_tokens ?? 0;
+          const u = parsed.message?.usage ?? {};
+          inputTokens = u.input_tokens ?? 0;
+          cacheCreationTokens = u.cache_creation_input_tokens ?? 0;
+          cacheReadTokens = u.cache_read_input_tokens ?? 0;
         } else if (parsed.type === "content_block_delta" && parsed.delta?.type === "text_delta") {
           const delta = sentRole
             ? { content: parsed.delta.text }
@@ -187,4 +214,39 @@ export const createChatCompletion = async ({ apiKey, model, body, apiBase }) => 
 
   const json = await response.json();
   return toOpenAiResponse(json, model);
+};
+
+/**
+ * Lists every model id available to this API key, paging through the full catalog.
+ * @param {{ apiKey: string, apiBase?: string }} params
+ * @returns {Promise<string[]>}
+ */
+export const listModels = async ({ apiKey, apiBase }) => {
+  const base = (apiBase || DEFAULT_API_BASE).replace(/\/$/, "");
+  const ids = [];
+  let afterId;
+
+  for (;;) {
+    const url = new URL(`${base}/models`);
+    url.searchParams.set("limit", "1000");
+    if (afterId) url.searchParams.set("after_id", afterId);
+
+    const response = await fetch(url, {
+      headers: { "x-api-key": apiKey, "anthropic-version": ANTHROPIC_VERSION },
+    });
+
+    if (!response.ok) {
+      throw new APIError({
+        message: await readErrorMessage(response),
+        status: response.status || httpStatus.BAD_GATEWAY,
+      });
+    }
+
+    const json = await response.json();
+    ids.push(...(json.data || []).map((model) => model.id));
+    if (!json.has_more || !json.data?.length) break;
+    afterId = json.last_id;
+  }
+
+  return ids;
 };

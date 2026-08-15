@@ -14,6 +14,7 @@ export const listLogs = {
     project_id: Joi.number().integer(),
     virtual_key_id: Joi.number().integer(),
     model: Joi.string(),
+    provider: Joi.string(),
     blocked_by: Joi.string(),
     from: Joi.date().iso(),
     to: Joi.date().iso(),

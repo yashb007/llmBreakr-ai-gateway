@@ -38,6 +38,14 @@ const RequestLog = sequelize.define(
       type: DataTypes.INTEGER,
       allowNull: true,
     },
+    cache_write_tokens: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+    },
+    cache_read_tokens: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+    },
     latency_ms: {
       type: DataTypes.INTEGER,
       allowNull: true,
