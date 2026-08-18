@@ -100,12 +100,15 @@ Gateway API → `http://localhost:4000`, dashboard → `http://localhost:3000`. 
 
 ### Running the published image (no clone needed)
 
-Every release publishes `ghcr.io/yashb007/llmbreakr-ai-gateway` via [`.github/workflows/docker-publish.yml`](.github/workflows/docker-publish.yml). To run it on a server without cloning the repo, you only need `docker-compose.yml` and a real `.env`:
+Every release publishes `ghcr.io/yashb007/llmbreakr-ai-gateway` (and `yashb007/llmbreakr-ai-gateway` on Docker Hub) via [`.github/workflows/docker-publish.yml`](.github/workflows/docker-publish.yml). To run it on a server without cloning the repo, you only need `docker-compose.yml` and a real `.env`:
 ```bash
-IMAGE_TAG=1.0.0 docker compose pull
-IMAGE_TAG=1.0.0 docker compose up -d
+curl -O https://raw.githubusercontent.com/yashb007/llmBreakr-ai-gateway/main/docker-compose.yml
+curl -O https://raw.githubusercontent.com/yashb007/llmBreakr-ai-gateway/main/.env.example
+cp .env.example .env   # fill in DB/JWT/admin secrets
+IMAGE_TAG=1.0.1 docker compose pull
+IMAGE_TAG=1.0.1 docker compose up -d
 ```
-`docker-compose.yml`'s `app` service declares both `build: .` (used when you run `docker compose build`/`up --build` locally, e.g. during development) and `image: ghcr.io/yashb007/llmbreakr-ai-gateway:${IMAGE_TAG:-latest}` (used for `pull`/`up` without `--build`). Omit `IMAGE_TAG` to run `latest`.
+`docker-compose.yml`'s `app` service declares both `build: .` (used when you run `docker compose build`/`up --build` locally, e.g. during development) and `image: ghcr.io/yashb007/llmbreakr-ai-gateway:${IMAGE_TAG:-latest}` (used for `pull`/`up` without `--build`). Omit `IMAGE_TAG` to run `latest`. The `main`-branch URLs above always fetch the current compose file; pin to a release tag (e.g. `/v1.0.1/docker-compose.yml`) instead if you want that file to stop changing under you between deploys.
 
 ### Releasing
 
@@ -114,6 +117,11 @@ git tag v1.0.0
 git push origin v1.0.0
 ```
 Pushing a `vX.Y.Z` tag triggers CI to build the root `Dockerfile` and push it to GHCR as both `X.Y.Z` and `latest`. Requires GHCR to be public (or the server to `docker login ghcr.io`) — a brand-new package defaults to private on first push, so make it public once in the repo's Packages settings after the first release.
+
+Also mirrors to Docker Hub (`yashbansal0412/llmbreakr-ai-gateway`) once `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` are set as repo secrets — until then that step is skipped, not failed, so GHCR publishing isn't blocked on it. To enable it:
+1. On Docker Hub, under Account Settings → Security, generate an access token (not your password).
+2. In this repo: Settings → Secrets and variables → Actions → New repository secret. Add `DOCKERHUB_USERNAME` = `yashbansal0412` and `DOCKERHUB_TOKEN` = the access token.
+3. Next tag push publishes to both registries automatically — no workflow changes needed.
 
 ### Database
 
