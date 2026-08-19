@@ -1,51 +1,9 @@
 services:
-  mysql:
-    image: mysql:8
-    restart: unless-stopped
-    environment:
-      MYSQL_DATABASE: ${DB_NAME}
-      MYSQL_USER: ${DB_USER}
-      MYSQL_PASSWORD: ${DB_PASSWORD}
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
-    volumes:
-      - mysql_data:/var/lib/mysql
-    ports:
-      - "3306:3306"
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD}"]
-      interval: 5s
-      timeout: 5s
-      retries: 20
-
-  redis:
-    image: redis:7-alpine
-    restart: unless-stopped
-    ports:
-      - "6379:6379"
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
   app:
     build: .
-    image: ghcr.io/yashb007/llmbreakr-ai-gateway:${IMAGE_TAG:-latest}
+    image: yashbansal0412/llmbreakr-ai-gateway:${IMAGE_TAG:-latest}
     restart: unless-stopped
     env_file: .env
-    environment:
-      DB_HOST: mysql
-      DB_PORT: 3306
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-    depends_on:
-      mysql:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
     ports:
       - "4000:4000" # gateway API + admin API
       - "3000:3000" # admin dashboard
-
-volumes:
-  mysql_data:

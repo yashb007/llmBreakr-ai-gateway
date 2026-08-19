@@ -90,25 +90,29 @@ The dashboard defaults to talking to the server at `http://localhost:4000` (`EXP
 
 ### Or: run everything with Docker
 
-The whole gateway (API + admin dashboard) ships as a **single image**, built from the one `Dockerfile` at the repo root — it runs both processes in one container (`start.sh` starts `server/index.js` on :4000 and the dashboard on :3000, and stops the container if either one dies). MySQL and Redis stay as separate containers, same as any self-hosted app.
+The whole gateway (API + admin dashboard) ships as a **single image**, built from the one `Dockerfile` at the repo root — it runs both processes in one container (`start.sh` starts `server/index.js` on :4000 and the dashboard on :3000, and stops the container if either one dies).
+
+`docker-compose.yml` only runs this one `app` container — **bring your own MySQL and Redis** (managed or self-hosted; set `DB_HOST`/`DB_PORT`/`REDIS_HOST`/`REDIS_PORT` in `.env` to point at them). This keeps the compose file minimal and doesn't lock you into a container-per-database setup, but it does mean you need a reachable database and Redis instance *before* running this.
 
 ```bash
-cp .env.example .env   # fill in DB/JWT/admin secrets
+cp .env.example .env   # fill in DB_HOST/REDIS_HOST + JWT/admin secrets
 docker compose up --build
 ```
-Gateway API → `http://localhost:4000`, dashboard → `http://localhost:3000`. Both processes share one `.env` — since they run in the same container, `EXPRESS_API_URL` just points at `http://localhost:4000` (baked into the image), so there's no cross-container config to keep in sync. `DB_HOST`/`REDIS_HOST` still point at the `mysql`/`redis` service names and are set in `docker-compose.yml` rather than `.env`, since they only make sense inside this compose network.
+Gateway API → `http://localhost:4000`, dashboard → `http://localhost:3000`. Both processes share one `.env` — since they run in the same container, `EXPRESS_API_URL` just points at `http://localhost:4000` (baked into the image), so there's no cross-container config to keep in sync.
 
 ### Running the published image (no clone needed)
 
-Every release publishes `ghcr.io/yashb007/llmbreakr-ai-gateway` (and `yashb007/llmbreakr-ai-gateway` on Docker Hub) via [`.github/workflows/docker-publish.yml`](.github/workflows/docker-publish.yml). To run it on a server without cloning the repo, you only need `docker-compose.yml` and a real `.env`:
+Every release publishes to both **Docker Hub** (`yashbansal0412/llmbreakr-ai-gateway`) and **GHCR** (`ghcr.io/yashb007/llmbreakr-ai-gateway`) via [`.github/workflows/docker-publish.yml`](.github/workflows/docker-publish.yml). `docker-compose.yml` pulls from Docker Hub by default. To run it on a server without cloning the repo, you only need `docker-compose.yml` and a real `.env`:
 ```bash
 curl -O https://raw.githubusercontent.com/yashb007/llmBreakr-ai-gateway/main/docker-compose.yml
 curl -O https://raw.githubusercontent.com/yashb007/llmBreakr-ai-gateway/main/.env.example
 cp .env.example .env   # fill in DB/JWT/admin secrets
-IMAGE_TAG=1.0.1 docker compose pull
-IMAGE_TAG=1.0.1 docker compose up -d
+IMAGE_TAG=1.0.2 docker compose pull
+IMAGE_TAG=1.0.2 docker compose up -d
 ```
-`docker-compose.yml`'s `app` service declares both `build: .` (used when you run `docker compose build`/`up --build` locally, e.g. during development) and `image: ghcr.io/yashb007/llmbreakr-ai-gateway:${IMAGE_TAG:-latest}` (used for `pull`/`up` without `--build`). Omit `IMAGE_TAG` to run `latest`. The `main`-branch URLs above always fetch the current compose file; pin to a release tag (e.g. `/v1.0.1/docker-compose.yml`) instead if you want that file to stop changing under you between deploys.
+`docker-compose.yml`'s `app` service declares both `build: .` (used when you run `docker compose build`/`up --build` locally, e.g. during development) and `image: yashbansal0412/llmbreakr-ai-gateway:${IMAGE_TAG:-latest}` (used for `pull`/`up` without `--build`). Omit `IMAGE_TAG` to run `latest`. The `main`-branch URLs above always fetch the current compose file; pin to a release tag (e.g. `/v1.0.2/docker-compose.yml`) instead if you want that file to stop changing under you between deploys.
+
+Prefer GHCR instead? Swap the `image:` line in `docker-compose.yml` to `ghcr.io/yashb007/llmbreakr-ai-gateway:${IMAGE_TAG:-latest}` — both registries get the same tags on every release.
 
 ### Releasing
 
