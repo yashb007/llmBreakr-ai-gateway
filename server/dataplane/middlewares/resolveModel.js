@@ -1,8 +1,7 @@
 import httpStatus from "http-status";
-import ProjectModel from "../../models/projectModel.model.js";
-import ProviderModel from "../../models/providerModel.model.js";
 import APIError from "../../utils/APIError.js";
 import { logRequest } from "../utils/requestLogger.js";
+import { mark } from "../utils/timing.js";
 
 export const resolveModel = async (req, res, next) => {
   try {
@@ -11,12 +10,11 @@ export const resolveModel = async (req, res, next) => {
       throw new APIError({ message: '"model" is required', status: httpStatus.BAD_REQUEST });
     }
 
-    // project_models is the single allowlist gate — a model has to be both in
-    // the shared catalog AND explicitly granted to this key's project.
-    const projectModel = await ProjectModel.findOne({
-      where: { project_id: req.project.id },
-      include: [{ model: ProviderModel, as: "providerModel", where: { model_id: modelName } }],
-    });
+    // No query here anymore — virtualKeyAuth's consolidated lookup already
+    // fetched every model this project is allowed to call. This is now a
+    // pure in-memory lookup against that already-fetched list.
+    const projectModels = req.project?.ProjectModels || [];
+    const projectModel = projectModels.find((pm) => pm.providerModel?.model_id === modelName);
     if (!projectModel) {
       await logRequest({
         virtualKeyId: req.virtualKey.id,
@@ -32,6 +30,7 @@ export const resolveModel = async (req, res, next) => {
     }
 
     req.providerModel = projectModel.providerModel;
+    mark(req, "resolveModel");
     next();
   } catch (error) {
     next(error);

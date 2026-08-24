@@ -14,6 +14,7 @@ export const createChatCompletion = async (req, res, next) => {
       providerModel: req.providerModel,
       body: req.body,
       res,
+      req,
     });
   } catch (error) {
     next(error);
