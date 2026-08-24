@@ -2,6 +2,7 @@ import express from "express";
 import { virtualKeyAuth } from "../middlewares/virtualKeyAuth.js";
 import { resolveModel } from "../middlewares/resolveModel.js";
 import { enforceLimits } from "../middlewares/enforceLimits.js";
+import { startTiming } from "../utils/timing.js";
 import * as chatController from "../controllers/chat.controller.js";
 
 const router = express.Router();
@@ -19,6 +20,7 @@ router.get("/status", (req, res) => res.send("OK"));
  */
 router.post(
   "/v1/chat/completions",
+  startTiming,
   virtualKeyAuth,
   resolveModel,
   enforceLimits,

@@ -4,11 +4,14 @@ import VirtualKey from "../../models/virtualKey.model.js";
 import Project from "../../models/project.model.js";
 import ProviderModel from "../../models/providerModel.model.js";
 import ProjectModel from "../../models/projectModel.model.js";
+import ProjectProviderCredential from "../../models/projectProviderCredential.model.js";
+import ProviderCredential from "../../models/providerCredential.model.js";
 import AuditLog from "../../models/auditLog.model.js";
 import APIError from "../../utils/APIError.js";
 import { generateVirtualKey, hashToken } from "../../utils/token.js";
 import { getAccessibleUserIds } from "../../utils/accessScope.js";
 import * as chatService from "../../dataplane/services/chat.service.js";
+import { invalidateKeyContext } from "../../dataplane/utils/keyContext.js";
 
 // Fixed, minimal prompt for the admin "test" button — the point is to verify
 // the key can reach its provider end-to-end, not to have a conversation.
@@ -137,6 +140,7 @@ export const updateVirtualKey = async (id, updates, actor) => {
   if (updates.monthly_token_limit !== undefined) key.monthly_token_limit = updates.monthly_token_limit;
   if (updates.expires_at !== undefined) key.expires_at = updates.expires_at;
   await key.save();
+  await invalidateKeyContext(key.key_hash);
 
   await AuditLog.create({
     actor_id: actor.id,
@@ -162,6 +166,7 @@ export const approveVirtualKey = async (id, actor) => {
   key.approved_by = actor.id;
   key.approved_at = new Date();
   await key.save();
+  await invalidateKeyContext(key.key_hash);
 
   await AuditLog.create({
     actor_id: actor.id,
@@ -180,6 +185,7 @@ export const revokeVirtualKey = async (id, actor) => {
   const key = await findAccessibleVirtualKeyOr404(id, actor);
   key.revoked = true;
   await key.save();
+  await invalidateKeyContext(key.key_hash);
 
   await AuditLog.create({
     actor_id: actor.id,
@@ -237,7 +243,12 @@ const runTest = async (key) => {
   const { providerModel } = projectModel;
   const modelName = providerModel.model_id;
 
-  const project = await Project.findByPk(key.project_id);
+  // chat.service.js's callProvider no longer queries for the credential
+  // itself — it expects project.ProjectProviderCredentials already attached,
+  // same shape dataplane/utils/keyContext.js fetches for real requests.
+  const project = await Project.findByPk(key.project_id, {
+    include: [{ model: ProjectProviderCredential, include: [{ model: ProviderCredential, as: "credential" }] }],
+  });
 
   const startedAt = Date.now();
   let captured = null;
@@ -270,6 +281,7 @@ const runTest = async (key) => {
 export const deleteVirtualKey = async (id, actor) => {
   const key = await findAccessibleVirtualKeyOr404(id, actor);
   await key.destroy();
+  await invalidateKeyContext(key.key_hash);
 
   await AuditLog.create({
     actor_id: actor.id,

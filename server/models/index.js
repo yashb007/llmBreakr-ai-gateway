@@ -50,7 +50,7 @@ ProviderCredential.belongsTo(User, { as: "creator", foreignKey: "created_by" });
 
 // virtual_keys.project_id -> projects.id
 Project.hasMany(VirtualKey, { foreignKey: "project_id" });
-VirtualKey.belongsTo(Project, { foreignKey: "project_id" });
+VirtualKey.belongsTo(Project, { as: "project", foreignKey: "project_id" });
 
 // virtual_keys.created_by -> users.id
 VirtualKey.belongsTo(User, { as: "creator", foreignKey: "created_by" });
