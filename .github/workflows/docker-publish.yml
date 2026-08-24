@@ -4,6 +4,14 @@ on:
   push:
     tags:
       - "v*.*.*"
+  # Lets auto-release.yml (commit-message-triggered releases) reuse this same
+  # build/push logic instead of duplicating it — see that workflow.
+  workflow_call:
+    inputs:
+      version:
+        description: "Version to build, without the leading v (e.g. 1.0.4). Required when called, not needed for a direct tag push."
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -18,6 +26,11 @@ jobs:
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          # A direct tag push already checks out that tag by default (empty
+          # ref = leave it alone); a workflow_call needs to be told which tag
+          # the caller just pushed, since it doesn't run on a tag event itself.
+          ref: ${{ inputs.version && format('v{0}', inputs.version) || '' }}
 
       - uses: docker/login-action@v3
         with:
@@ -35,7 +48,12 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - id: version
-        run: echo "tag=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+        run: |
+          if [ -n "${{ inputs.version }}" ]; then
+            echo "tag=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          fi
 
       - id: tags
         run: |

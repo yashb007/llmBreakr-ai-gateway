@@ -1,11 +1,10 @@
 import httpStatus from "http-status";
-import ProviderCredential from "../../models/providerCredential.model.js";
-import ProjectProviderCredential from "../../models/projectProviderCredential.model.js";
 import APIError from "../../utils/APIError.js";
 import { decrypt } from "../../utils/encryption.js";
 import { estimateCostUsd } from "../../utils/pricing.js";
 import { incrementUsage } from "../middlewares/enforceLimits.js";
 import { logRequest as logRequestRow } from "../utils/requestLogger.js";
+import { mark, logTimings } from "../utils/timing.js";
 import { PROVIDERS } from "../../providers/index.js";
 
 const logRequest = ({ virtualKey, project, provider, model, usage, latencyMs, status, error }) =>
@@ -63,7 +62,7 @@ const relayStreamAndCaptureUsage = async (webStream, res, provider) => {
   return usage ? PROVIDERS[provider].extractBillingUsage(usage) : null;
 };
 
-const callProvider = async (providerModel, project, body) => {
+const callProvider = async (providerModel, project, body, req) => {
   const provider = providerModel.provider;
 
   const adapter = PROVIDERS[provider];
@@ -73,30 +72,26 @@ const callProvider = async (providerModel, project, body) => {
 
   // Credential is resolved dynamically as (project, provider) — not stored on
   // the model itself — so a project only needs one credential per provider
-  // to reach every catalog model that provider offers.
-  const projectCredential = await ProjectProviderCredential.findOne({
-    where: { project_id: project.id, provider },
-  });
-  if (!projectCredential) {
+  // to reach every catalog model that provider offers. No query here — the
+  // caller (virtualKeyAuth's consolidated lookup, or admin testVirtualKey's
+  // matching fetch) already attached every credential this project has.
+  const credentials = project?.ProjectProviderCredentials || [];
+  const projectCredential = credentials.find((c) => c.provider === provider);
+  if (!projectCredential?.credential) {
     throw new APIError({
       message: `No credential configured for provider "${provider}" on this project`,
       status: httpStatus.INTERNAL_SERVER_ERROR,
     });
   }
+  const apiKey = decrypt(projectCredential.credential.encrypted_key);
+  mark(req, "credentialLookup");
 
-  const credential = await ProviderCredential.findByPk(projectCredential.provider_credential_id);
-  if (!credential) {
-    throw new APIError({
-      message: "Provider credential not found for this project",
-      status: httpStatus.INTERNAL_SERVER_ERROR,
-    });
-  }
-  const apiKey = decrypt(credential.encrypted_key);
-
-  return adapter.createChatCompletion({ apiKey, model: providerModel.model_id, body });
+  const result = await adapter.createChatCompletion({ apiKey, model: providerModel.model_id, body });
+  mark(req, "llmProviderCall");
+  return result;
 };
 
-export const handleChatCompletion = async ({ virtualKey, project, providerModel, body, res }) => {
+export const handleChatCompletion = async ({ virtualKey, project, providerModel, body, res, req }) => {
   const startedAt = Date.now();
   const isStreaming = body.stream === true;
 
@@ -118,9 +113,11 @@ export const handleChatCompletion = async ({ virtualKey, project, providerModel,
 
   let result;
   try {
-    result = await callProvider(providerModel, project, body);
+    result = await callProvider(providerModel, project, body, req);
   } catch (error) {
-    await logRequest({
+    // Don't make the client wait on a log write to receive an error they
+    // already have — log it in the background and fail fast.
+    logRequest({
       virtualKey,
       project,
       provider: served.provider,
@@ -128,7 +125,7 @@ export const handleChatCompletion = async ({ virtualKey, project, providerModel,
       latencyMs: Date.now() - startedAt,
       status: error.status || httpStatus.INTERNAL_SERVER_ERROR,
       error: error.message,
-    });
+    }).catch((logError) => console.error("error-path log write failed", logError));
     throw error;
   }
 
@@ -136,19 +133,37 @@ export const handleChatCompletion = async ({ virtualKey, project, providerModel,
 
   if (!isStreaming) {
     const { json, usage } = result;
-    await incrementUsage({
+
+    // The LLM has already answered by this point — incrementUsage/logRequest
+    // are pure bookkeeping the client doesn't need to wait on. Fire them
+    // after the response instead of before it. Trade-off: if the process
+    // crashes in the (usually sub-second) window before these resolve, this
+    // one request's usage counters/log row are lost — consistent with the
+    // "best-effort" tolerance enforceLimits.js already documents for rate
+    // limiting. This also means a Redis/MySQL hiccup here can no longer
+    // fail the client's request after the LLM already answered it.
+    res.json(json);
+
+    incrementUsage({
       virtualKeyId: virtualKey.id,
       projectId: project?.id,
       costUsd: estimateCostUsd(rates, usage),
       usage,
-    });
-    await logRequest({
-      ...baseLog,
-      usage,
-      latencyMs: Date.now() - startedAt,
-      status: httpStatus.OK,
-    });
-    res.json(json);
+    })
+      .then(() =>
+        logRequest({
+          ...baseLog,
+          usage,
+          latencyMs: Date.now() - startedAt,
+          status: httpStatus.OK,
+        })
+      )
+      .then(() => {
+        mark(req, "incrementUsageAndLog");
+        logTimings(req);
+      })
+      .catch((error) => console.error("post-response usage/log bookkeeping failed", error));
+
     return;
   }
 
@@ -170,6 +185,7 @@ export const handleChatCompletion = async ({ virtualKey, project, providerModel,
 
     const usage = await relayStreamAndCaptureUsage(stream, res, served.provider);
     res.end();
+    mark(req, "streamRelay");
 
     await incrementUsage({
       virtualKeyId: virtualKey.id,
@@ -183,13 +199,15 @@ export const handleChatCompletion = async ({ virtualKey, project, providerModel,
       latencyMs: Date.now() - startedAt,
       status: httpStatus.OK,
     });
+    mark(req, "incrementUsageAndLog");
+    logTimings(req);
   } catch (error) {
-    await logRequest({
+    logRequest({
       ...baseLog,
       latencyMs: Date.now() - startedAt,
       status: error.status || httpStatus.INTERNAL_SERVER_ERROR,
       error: error.message,
-    });
+    }).catch((logError) => console.error("error-path log write failed", logError));
 
     if (headersSent) {
       res.write(`data: ${JSON.stringify({ error: { message: error.message } })}\n\n`);

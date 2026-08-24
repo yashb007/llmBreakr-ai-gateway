@@ -1,9 +1,9 @@
 import httpStatus from "http-status";
-import VirtualKey from "../../models/virtualKey.model.js";
-import Project from "../../models/project.model.js";
 import APIError from "../../utils/APIError.js";
 import { hashToken } from "../../utils/token.js";
 import { logRequest } from "../utils/requestLogger.js";
+import { mark } from "../utils/timing.js";
+import { resolveKeyContext } from "../utils/keyContext.js";
 
 export const virtualKeyAuth = async (req, res, next) => {
   try {
@@ -14,7 +14,9 @@ export const virtualKeyAuth = async (req, res, next) => {
       throw new APIError({ message: "Authentication required", status: httpStatus.UNAUTHORIZED });
     }
 
-    const virtualKey = await VirtualKey.findOne({ where: { key_hash: hashToken(token) } });
+    // One consolidated, cached lookup instead of a separate VirtualKey +
+    // Project query — see dataplane/utils/keyContext.js.
+    const virtualKey = await resolveKeyContext(hashToken(token));
     if (!virtualKey) {
       // No identity to attach the row to — nothing meaningful to log against.
       throw new APIError({ message: "Invalid API key", status: httpStatus.UNAUTHORIZED });
@@ -42,7 +44,7 @@ export const virtualKeyAuth = async (req, res, next) => {
         status: httpStatus.UNAUTHORIZED,
       });
     }
-    if (virtualKey.expires_at && virtualKey.expires_at < new Date()) {
+    if (virtualKey.expires_at && new Date(virtualKey.expires_at) < new Date()) {
       await logRequest({
         virtualKeyId: virtualKey.id,
         projectId: virtualKey.project_id,
@@ -54,7 +56,8 @@ export const virtualKeyAuth = async (req, res, next) => {
     }
 
     req.virtualKey = virtualKey;
-    req.project = await Project.findByPk(virtualKey.project_id);
+    req.project = virtualKey.project;
+    mark(req, "auth");
     next();
   } catch (error) {
     next(error);

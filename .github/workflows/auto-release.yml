@@ -1,0 +1,67 @@
+name: Auto release
+
+# Cuts a release automatically when a push to main's commit message starts
+# with a conventional-commit type that actually changes shipped behavior
+# (feat/fix/perf) — chore/docs/style/test/refactor/ci/build commits never
+# trigger a release. Always bumps patch; use `npm run release:minor`/`:major`
+# by hand for a bigger version jump.
+#
+# Deliberately never pushes to main — main has branch protection (only you
+# can merge), so this only ever creates and pushes a *tag*. Tags live in a
+# separate ref namespace (refs/tags/*, not refs/heads/*) that branch
+# protection on main doesn't touch, and the next version is computed from
+# the latest existing tag, not from package.json — so this never needs to
+# commit a version bump anywhere. package.json's version field is only ever
+# updated by your own manual `npm run release:*`, and can drift behind the
+# latest tag; that's expected, not a bug.
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  check-trigger:
+    runs-on: ubuntu-latest
+    outputs:
+      should-release: ${{ steps.check.outputs.match }}
+    steps:
+      - id: check
+        env:
+          MSG: ${{ github.event.head_commit.message }}
+        run: |
+          if echo "$MSG" | grep -qE '^(feat|fix|perf)(\([^)]*\))?:'; then
+            echo "match=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "match=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  tag-next-version:
+    needs: check-trigger
+    if: needs.check-trigger.outputs.should-release == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.tag.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full tag history — needed to find the latest tag
+
+      - id: tag
+        run: |
+          LATEST=$(git tag --list 'v*.*.*' | sort -V | tail -n1)
+          LATEST=${LATEST:-v0.0.0}
+          IFS='.' read -r MAJOR MINOR PATCH <<< "${LATEST#v}"
+          VERSION="$MAJOR.$MINOR.$((PATCH + 1))"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          git tag "v$VERSION"
+          git push origin "v$VERSION"
+
+  publish:
+    needs: tag-next-version
+    uses: ./.github/workflows/docker-publish.yml
+    with:
+      version: ${{ needs.tag-next-version.outputs.version }}
+    secrets: inherit
