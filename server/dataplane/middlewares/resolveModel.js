@@ -30,6 +30,11 @@ export const resolveModel = async (req, res, next) => {
     }
 
     req.providerModel = projectModel.providerModel;
+    // Ordered fallback chain for this model, if any — already fetched by
+    // virtualKeyAuth's consolidated query, just needs sorting here. Empty
+    // array (not undefined) when no chain is configured, so chat.service.js
+    // never has to null-check it.
+    req.fallbackChain = [...(projectModel.fallbacksAsPrimary || [])].sort((a, b) => a.priority - b.priority);
     mark(req, "resolveModel");
     next();
   } catch (error) {

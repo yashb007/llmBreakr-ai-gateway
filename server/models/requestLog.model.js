@@ -30,6 +30,20 @@ const RequestLog = sequelize.define(
       type: DataTypes.STRING,
       allowNull: true,
     },
+    // Set only when a fallback actually fired and this differs from `model`
+    // above (which always holds whichever model actually served the
+    // request) — null on every ordinary, non-fallback request.
+    requested_model: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    // 0 = served by the primary model, 1 = first fallback, 2 = second, etc.
+    // Null when fallback never applied (no chain configured, or the failure
+    // wasn't fallback-eligible).
+    fallback_attempt: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+    },
     prompt_tokens: {
       type: DataTypes.INTEGER,
       allowNull: true,

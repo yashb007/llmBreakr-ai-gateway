@@ -9,6 +9,8 @@ export const logRequest = ({
   projectId,
   provider,
   model,
+  requestedModel,
+  fallbackAttempt,
   promptTokens,
   completionTokens,
   cacheWriteTokens,
@@ -23,6 +25,10 @@ export const logRequest = ({
     project_id: projectId ?? null,
     provider: provider ?? null,
     model: model ?? null,
+    // Only meaningfully set when a fallback fired and this differs from
+    // `model` above — see dataplane/services/chat.service.js's fallback walk.
+    requested_model: requestedModel ?? null,
+    fallback_attempt: fallbackAttempt ?? null,
     prompt_tokens: promptTokens ?? null,
     completion_tokens: completionTokens ?? null,
     cache_write_tokens: cacheWriteTokens ?? null,

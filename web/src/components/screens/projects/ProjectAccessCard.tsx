@@ -5,7 +5,8 @@ import useSWR from "swr";
 import { Card } from "@/components/ui/Card";
 import { swrFetcher, clientFetch, ClientApiError } from "@/lib/client-fetch";
 import { providerColor } from "@/lib/providerColors";
-import type { ProjectModel, ProjectProviderCredential, ProviderCredential, ProviderModel } from "@/types/api";
+import type { ProjectModel, ProjectModelFallback, ProjectProviderCredential, ProviderCredential, ProviderModel } from "@/types/api";
+import { ModelFallbackChain } from "./ModelFallbackChain";
 
 // Both sections share one card since "which models a project can call" is
 // gated by both lists together: a model is only reachable if its provider
@@ -27,6 +28,11 @@ export function ProjectAccessCard({
     `/api/proxy/project-models?project_id=${projectId}`,
     swrFetcher
   );
+  const { data: fallbacks, mutate: mutateFallbacks } = useSWR<ProjectModelFallback[]>(
+    `/api/proxy/project-model-fallbacks?project_id=${projectId}`,
+    swrFetcher
+  );
+  const [expandedModelId, setExpandedModelId] = useState<number | null>(null);
 
   const attachedProviders = new Set((projectCredentials ?? []).map((c) => c.provider));
   const attachedCredentialIds = new Set((projectCredentials ?? []).map((c) => c.provider_credential_id));
@@ -87,6 +93,9 @@ export function ProjectAccessCard({
   const removeModel = async (id: number) => {
     await clientFetch(`/api/proxy/project-models/${id}?project_id=${projectId}`, { method: "DELETE" });
     mutateModels();
+    // Removing a model cascades its fallback rows (as either side of a
+    // chain) in the DB — refresh so the UI doesn't show stale references.
+    mutateFallbacks();
   };
 
   const selectClass =
@@ -153,17 +162,42 @@ export function ProjectAccessCard({
         <div className="px-[18px] py-3">
           {projectModels && projectModels.length > 0 ? (
             <div className="mb-3 flex flex-col gap-1.5">
-              {projectModels.map((m) => (
-                <div key={m.id} className="flex items-center justify-between rounded-[8px] border border-border bg-bg px-3 py-2 text-[12.5px]">
-                  <span className="flex items-center gap-2">
-                    <span className="h-2 w-2 rounded-full" style={{ background: providerColor(m.provider ?? "") }} />
-                    <span className="font-mono font-bold">{m.model_id}</span>
-                  </span>
-                  <button onClick={() => removeModel(m.id)} className={removeBtnClass}>
-                    Remove
-                  </button>
-                </div>
-              ))}
+              {projectModels.map((m) => {
+                const modelChain = (fallbacks ?? [])
+                  .filter((f) => f.primary_project_model_id === m.id)
+                  .sort((a, b) => a.priority - b.priority);
+                const isExpanded = expandedModelId === m.id;
+                return (
+                  <div key={m.id} className="rounded-[8px] border border-border bg-bg px-3 py-2 text-[12.5px]">
+                    <div className="flex items-center justify-between">
+                      <span className="flex items-center gap-2">
+                        <span className="h-2 w-2 rounded-full" style={{ background: providerColor(m.provider ?? "") }} />
+                        <span className="font-mono font-bold">{m.model_id}</span>
+                      </span>
+                      <span className="flex items-center gap-3">
+                        <button
+                          onClick={() => setExpandedModelId(isExpanded ? null : m.id)}
+                          className="text-[11.5px] font-semibold text-txd hover:text-tx"
+                        >
+                          Fallbacks{modelChain.length > 0 ? ` (${modelChain.length})` : ""} {isExpanded ? "▲" : "▼"}
+                        </button>
+                        <button onClick={() => removeModel(m.id)} className={removeBtnClass}>
+                          Remove
+                        </button>
+                      </span>
+                    </div>
+                    {isExpanded && (
+                      <ModelFallbackChain
+                        projectId={projectId}
+                        model={m}
+                        allModels={projectModels}
+                        chain={modelChain}
+                        onChanged={() => mutateFallbacks()}
+                      />
+                    )}
+                  </div>
+                );
+              })}
             </div>
           ) : (
             <p className="mb-3 text-[12.5px] text-txd">No models allowed yet.</p>

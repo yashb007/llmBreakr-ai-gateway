@@ -12,6 +12,7 @@ import RequestLog from "./requestLog.model.js";
 import ProviderModel from "./providerModel.model.js";
 import ProjectProviderCredential from "./projectProviderCredential.model.js";
 import ProjectModel from "./projectModel.model.js";
+import ProjectModelFallback from "./projectModelFallback.model.js";
 
 // users.created_by -> users.id (self-reference)
 User.belongsTo(User, { as: "creator", foreignKey: "created_by" });
@@ -79,6 +80,30 @@ ProjectModel.belongsTo(ProviderModel, { as: "providerModel", foreignKey: "provid
 // project_models.created_by -> users.id
 ProjectModel.belongsTo(User, { as: "creator", foreignKey: "created_by" });
 
+// project_model_fallbacks.project_id -> projects.id, cascade delete
+Project.hasMany(ProjectModelFallback, { foreignKey: "project_id", onDelete: "CASCADE" });
+ProjectModelFallback.belongsTo(Project, { foreignKey: "project_id" });
+
+// project_model_fallbacks.primary_project_model_id -> project_models.id, cascade delete —
+// two FKs point at project_models, so each direction needs its own alias.
+ProjectModel.hasMany(ProjectModelFallback, {
+  as: "fallbacksAsPrimary",
+  foreignKey: "primary_project_model_id",
+  onDelete: "CASCADE",
+});
+ProjectModelFallback.belongsTo(ProjectModel, { as: "primaryModel", foreignKey: "primary_project_model_id" });
+
+// project_model_fallbacks.fallback_project_model_id -> project_models.id, cascade delete
+ProjectModel.hasMany(ProjectModelFallback, {
+  as: "fallbacksAsTarget",
+  foreignKey: "fallback_project_model_id",
+  onDelete: "CASCADE",
+});
+ProjectModelFallback.belongsTo(ProjectModel, { as: "fallbackModel", foreignKey: "fallback_project_model_id" });
+
+// project_model_fallbacks.created_by -> users.id
+ProjectModelFallback.belongsTo(User, { as: "creator", foreignKey: "created_by" });
+
 // request_logs.project_id -> projects.id
 Project.hasMany(RequestLog, { foreignKey: "project_id" });
 RequestLog.belongsTo(Project, { foreignKey: "project_id" });
@@ -102,4 +127,5 @@ export {
   ProviderModel,
   ProjectProviderCredential,
   ProjectModel,
+  ProjectModelFallback,
 };

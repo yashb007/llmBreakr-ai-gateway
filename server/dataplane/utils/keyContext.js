@@ -5,6 +5,7 @@ import ProjectModel from "../../models/projectModel.model.js";
 import ProviderModel from "../../models/providerModel.model.js";
 import ProjectProviderCredential from "../../models/projectProviderCredential.model.js";
 import ProviderCredential from "../../models/providerCredential.model.js";
+import ProjectModelFallback from "../../models/projectModelFallback.model.js";
 
 const CACHE_TTL_SECONDS = 30;
 // Invalid/unknown key hashes are cached too, but briefly — long enough that
@@ -33,7 +34,22 @@ export const resolveKeyContext = async (keyHash) => {
         model: Project,
         as: "project",
         include: [
-          { model: ProjectModel, include: [{ model: ProviderModel, as: "providerModel" }] },
+          {
+            model: ProjectModel,
+            include: [
+              { model: ProviderModel, as: "providerModel" },
+              // Ordered fallback chain for this model, if any — resolveModel.js
+              // and chat.service.js's fallback walk both read this straight off
+              // the cached context, no separate query.
+              {
+                model: ProjectModelFallback,
+                as: "fallbacksAsPrimary",
+                include: [
+                  { model: ProjectModel, as: "fallbackModel", include: [{ model: ProviderModel, as: "providerModel" }] },
+                ],
+              },
+            ],
+          },
           { model: ProjectProviderCredential, include: [{ model: ProviderCredential, as: "credential" }] },
         ],
       },

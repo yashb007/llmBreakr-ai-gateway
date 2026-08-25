@@ -81,6 +81,21 @@ export interface ProjectModel {
   created_at: string;
 }
 
+// One link in a model's fallback chain — when primary_project_model_id
+// fails at its provider, chat.service.js tries fallback_project_model_id
+// next, in ascending priority order within the same primary.
+export interface ProjectModelFallback {
+  id: number;
+  project_id: number;
+  priority: number;
+  primary_project_model_id: number;
+  primary_model: { provider: string; model_id: string } | null;
+  fallback_project_model_id: number;
+  fallback_model: { provider: string; model_id: string } | null;
+  created_by: number | null;
+  created_at: string;
+}
+
 export interface VirtualKey {
   id: number;
   project_id: number;
