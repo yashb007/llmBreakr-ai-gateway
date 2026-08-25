@@ -7,6 +7,7 @@ A self-hostable AI gateway that sits in front of OpenAI, Gemini, and Anthropic, 
 - **Unified chat API** — one OpenAI-compatible endpoint (`/v1/chat/completions`, streaming included) that proxies to OpenAI, Gemini, and Anthropic today, with more providers and features on the way (see [Roadmap](#roadmap))
 - **Virtual keys** — issue scoped API keys per project/consumer instead of sharing raw provider keys, with an approval workflow before a key goes live
 - **Projects & model routing** — group consumers into projects and control exactly which provider models each project is allowed to call
+- **Automatic fallback** — configure an ordered chain of alternate models per project model; a provider outage, rate limit, or bad credential automatically retries against the next model in the chain instead of failing the request
 - **Limits & quotas** — request-rate and budget enforcement per project, checked on every request before it reaches the provider
 - **Usage logging & audit logs** — every chat request and every admin action is logged for later review
 - **RBAC** — role/permission-based access control for admin users
@@ -55,9 +56,20 @@ curl -X POST http://localhost:4000/api/data/v1/chat/completions \
     "messages": [{"role": "user", "content": "Hello"}]
   }'
 ```
-Every request runs through `virtualKeyAuth → resolveModel → enforceLimits` before it's forwarded to the provider — the key must be approved and active, the model must be allowed for the key's project, and the project's rate/budget limits must not be exceeded. `model` must be a raw provider model id (e.g. `gpt-4o-mini`, `gemini-1.5-pro`, `claude-3-5-sonnet-...`) that's been enabled for that project. Set `"stream": true` for an SSE stream.
+Every request runs through `virtualKeyAuth → resolveModel → enforceLimits` before it's forwarded to the provider — the key must be approved and active, the model must be allowed for the key's project, and the project's rate/budget limits must not be exceeded. `model` must be a raw provider model id (e.g. `gpt-4o-mini`, `gemini-1.5-pro`, `claude-3-5-sonnet-...`) that's been enabled for that project. Set `"stream": true` for an SSE stream. If a fallback chain is configured for the requested model and the primary provider fails, the response includes an `X-LLMBreakr-Served-Model` header naming whichever model actually served it.
 
-Other useful endpoints: `/api/admin/projects`, `/api/admin/virtual-keys`, `/api/admin/provider-creds`, `/api/admin/models`, `/api/admin/logs`, `/api/admin/usage`, `/api/admin/audit-logs`.
+Other useful endpoints: `/api/admin/projects`, `/api/admin/virtual-keys`, `/api/admin/provider-creds`, `/api/admin/models`, `/api/admin/logs`, `/api/admin/usage`, `/api/admin/audit-logs`, `/api/admin/project-model-fallbacks`.
+
+## Automatic fallback
+
+When a model's provider fails, the gateway can automatically retry the same request against a different, pre-configured model instead of just returning an error.
+
+- **One retry, then fallback** — a transient failure (any 5xx, or a network error with no status at all) gets one retry on the *same* model first. If that also fails, or the failure is a rate limit (`429`) or a bad credential (`401`/`403`), the gateway walks the fallback chain in priority order, trying each candidate once.
+- **A `400` never retries or falls back** — a malformed request is the same broken request on every provider, so it fails immediately.
+- **The caller always sees the primary model's original error if every candidate is exhausted** — not the last fallback's error, since that's not what was actually asked for.
+- **Fallback only applies before any response bytes reach the client.** For streaming requests, that means only if the provider connection itself fails to establish — never mid-stream, since silently swapping providers after tokens have already been sent would corrupt the response.
+- **Configure a chain**: `POST /api/admin/project-model-fallbacks` with `{ project_id, primary_project_model_id, fallback_project_model_id, priority }` — both sides must already be in that project's model allowlist. `GET`/`PATCH`/`DELETE` on the same route manage/reorder/remove entries. In the dashboard: a project's detail page → **Allowed models** → **Fallbacks** on each model row.
+- **Observability**: `request_logs` gains `requested_model` (only set when a fallback actually served the request) and `fallback_attempt` (`0` = primary, `1`+ = which fallback).
 
 ## Tech stack
 
@@ -139,7 +151,7 @@ Provider support today is OpenAI, Gemini, and Anthropic. More providers (and mor
 
 This repo is the self-hosted, MIT-licensed gateway. A managed SaaS version and additional enterprise capabilities are planned separately — self-hosting the full open-source gateway will always remain supported.
 
-Publishing built server/web images to a container registry (GHCR) via CI is planned, so self-hosting will only require `docker pull` + a compose file — no clone needed.
+Smart routing (proactively spreading traffic across multiple valid models/credentials on every request, not just on failure) is under consideration as a follow-up to automatic fallback.
 
 ## Contributing
 
