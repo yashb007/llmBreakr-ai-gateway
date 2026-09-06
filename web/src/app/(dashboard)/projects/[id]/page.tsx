@@ -80,7 +80,7 @@ export default async function ProjectDetailPage({
         <RangeSwitch active={range} basePath={`/projects/${project.id}`} />
       </div>
 
-      <div className="mb-[18px] grid grid-cols-1 gap-[18px] sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mb-[18px] grid grid-cols-1 gap-[18px] sm:grid-cols-2 lg:grid-cols-5">
         <KpiCard
           label="Spend"
           value={formatUsd(totals.cost_usd)}
@@ -98,6 +98,13 @@ export default async function ProjectDetailPage({
           value={formatLatency(totals.avg_latency_ms)}
           sub="across all models"
           deltaPct={deltas.latency_pct}
+          goodDirection="down"
+        />
+        <KpiCard
+          label="P95 latency"
+          value={formatLatency(totals.p95_latency_ms)}
+          sub="slowest 5% of requests"
+          deltaPct={deltas.p95_latency_pct}
           goodDirection="down"
         />
         <KpiCard

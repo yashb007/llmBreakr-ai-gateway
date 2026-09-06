@@ -182,6 +182,7 @@ export interface UsageTotals {
   errors: number;
   error_rate: number;
   avg_latency_ms: number;
+  p95_latency_ms: number;
   cost_usd: number;
   input_tokens: number;
   output_tokens: number;
@@ -195,6 +196,7 @@ export interface UsageResponse {
     requests_pct: number;
     cost_pct: number;
     latency_pct: number;
+    p95_latency_pct: number;
     error_rate_pct: number;
     input_tokens_pct: number;
     output_tokens_pct: number;

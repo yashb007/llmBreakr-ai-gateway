@@ -1,4 +1,5 @@
-import { Op, fn, col, literal } from "sequelize";
+import { Op, fn, col, literal, QueryTypes } from "sequelize";
+import sequelize from "../../config/sql.js";
 import RequestLog from "../../models/requestLog.model.js";
 import { estimateCostUsd, loadPricingByProviderModel, pricingKey } from "../../utils/pricing.js";
 
@@ -57,11 +58,42 @@ const buildWhere = (from, to, projectId, virtualKeyId) => ({
   ...(virtualKeyId && { virtual_key_id: virtualKeyId }),
 });
 
+// MySQL has no PERCENTILE_CONT aggregate, so p95 is computed via the
+// PERCENT_RANK window function instead: rank every request's latency
+// within the window, then take the smallest one at or past the 95th
+// percentile rank.
+const getP95Latency = async (from, to, projectId, virtualKeyId) => {
+  const conditions = ["ts >= :from", "ts < :to", "latency_ms IS NOT NULL"];
+  const replacements = { from, to };
+  if (projectId) {
+    conditions.push("project_id = :projectId");
+    replacements.projectId = projectId;
+  }
+  if (virtualKeyId) {
+    conditions.push("virtual_key_id = :virtualKeyId");
+    replacements.virtualKeyId = virtualKeyId;
+  }
+
+  const [row] = await sequelize.query(
+    `SELECT latency_ms FROM (
+       SELECT latency_ms, PERCENT_RANK() OVER (ORDER BY latency_ms) AS pr
+       FROM request_logs
+       WHERE ${conditions.join(" AND ")}
+     ) ranked
+     WHERE pr >= 0.95
+     ORDER BY pr ASC
+     LIMIT 1`,
+    { replacements, type: QueryTypes.SELECT }
+  );
+
+  return row?.latency_ms ? Math.round(Number(row.latency_ms)) : 0;
+};
+
 // Cost isn't a SQL-expressible aggregate (pricing is per-model DB data, not
 // a formula), so pull small per-model token sums and reduce them in JS
 // against a model_name -> rates lookup instead.
 const getTotals = async (from, to, projectId, virtualKeyId) => {
-  const [[row], modelTotals, pricingByProviderModel] = await Promise.all([
+  const [[row], p95LatencyMs, modelTotals, pricingByProviderModel] = await Promise.all([
     RequestLog.findAll({
       where: buildWhere(from, to, projectId, virtualKeyId),
       attributes: [
@@ -71,6 +103,7 @@ const getTotals = async (from, to, projectId, virtualKeyId) => {
       ],
       raw: true,
     }),
+    getP95Latency(from, to, projectId, virtualKeyId),
     RequestLog.findAll({
       where: buildWhere(from, to, projectId, virtualKeyId),
       attributes: [
@@ -113,6 +146,7 @@ const getTotals = async (from, to, projectId, virtualKeyId) => {
     errors,
     error_rate: requests ? errors / requests : 0,
     avg_latency_ms: row?.avg_latency_ms ? Math.round(Number(row.avg_latency_ms)) : 0,
+    p95_latency_ms: p95LatencyMs,
     cost_usd: Math.round(costUsd * 10000) / 10000,
     input_tokens: inputTokens,
     output_tokens: outputTokens,
@@ -166,6 +200,7 @@ export const getUsage = async ({ range, project_id, virtual_key_id, bucket }) =>
       requests_pct: pctDelta(totals.requests, priorTotals.requests),
       cost_pct: pctDelta(totals.cost_usd, priorTotals.cost_usd),
       latency_pct: pctDelta(totals.avg_latency_ms, priorTotals.avg_latency_ms),
+      p95_latency_pct: pctDelta(totals.p95_latency_ms, priorTotals.p95_latency_ms),
       error_rate_pct: pctDelta(totals.error_rate, priorTotals.error_rate),
       input_tokens_pct: pctDelta(totals.input_tokens, priorTotals.input_tokens),
       output_tokens_pct: pctDelta(totals.output_tokens, priorTotals.output_tokens),
