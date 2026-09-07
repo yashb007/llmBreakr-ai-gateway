@@ -1,0 +1,19 @@
+# Non-sensitive config. Edit the values below, then:
+#   kubectl apply -f configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: llmbreakr-config
+data:
+  # MySQL — bring your own (managed or self-hosted); this deployment doesn't run one.
+  DB_HOST: "mysql.example.com"
+  DB_PORT: "3306"
+  DB_NAME: "llmbreakr"
+
+  # Redis — bring your own, same as MySQL.
+  REDIS_HOST: "redis.example.com"
+  REDIS_PORT: "6379"
+
+  # Bootstrap super admin account, created on first run.
+  SUPER_ADMIN_EMAIL: "admin@example.com"
+  SUPER_ADMIN_NAME: "Admin"

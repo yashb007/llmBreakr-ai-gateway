@@ -41,6 +41,10 @@ app.use(cors());
 
 app.get(`/${process.env.LOADER_HASH}`, (req, res) => res.send(`${process.env.LOADER_HASH}`));
 
+// Unauthenticated, no-secret liveness/readiness target — for k8s probes and
+// load balancer health checks, where wiring in LOADER_HASH isn't practical.
+app.get("/healthz", (req, res) => res.json({ status: "ok" }));
+
 // mount api v1 routes
 app.use("/api/admin", adminRoutes);
 app.use("/api/data", dataPlaneRoutes);

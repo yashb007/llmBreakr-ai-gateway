@@ -1,0 +1,53 @@
+# One pod, one container — the same image docker-compose.yml runs, with the
+# gateway API + admin API (port 4000) and the admin dashboard (port 3000) as
+# two processes supervised by start.sh inside it. If either process dies,
+# start.sh brings the whole container down, so a single liveness probe
+# against port 4000 is enough to catch either one failing.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: llmbreakr
+  labels:
+    app: llmbreakr
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: llmbreakr
+  template:
+    metadata:
+      labels:
+        app: llmbreakr
+    spec:
+      containers:
+        - name: llmbreakr
+          image: yashbansal0412/llmbreakr-ai-gateway:latest # or ghcr.io/yashb007/llmbreakr-ai-gateway:latest — pin a version tag in production
+          ports:
+            - name: api
+              containerPort: 4000
+            - name: dashboard
+              containerPort: 3000
+          envFrom:
+            - configMapRef:
+                name: llmbreakr-config
+            - secretRef:
+                name: llmbreakr-secrets
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: api
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: api
+            initialDelaySeconds: 15
+            periodSeconds: 15
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: 1
+              memory: 512Mi

@@ -7,3 +7,5 @@ package-lock.json
 docs/*
 .DS_Store
 .idea/
+server/.license-private-key.pem
+k8s/secret.yaml

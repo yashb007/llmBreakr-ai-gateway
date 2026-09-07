@@ -1,0 +1,40 @@
+# Optional — only needed if you want the gateway/dashboard reachable by
+# hostname from outside the cluster. Requires an ingress controller
+# (e.g. ingress-nginx) already installed. Edit the hosts, then:
+#   kubectl apply -f ingress.yaml
+#
+# Two separate hosts (rather than one host split by path) because the
+# Next.js dashboard assumes it's served from "/" — no basePath configured.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: llmbreakr
+  annotations:
+    # cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/proxy-body-size: "20m" # matches the 20mb request body limit the API accepts
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: gateway.example.com # data-plane + admin API
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: llmbreakr
+                port:
+                  name: api
+    - host: admin.example.com # dashboard
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: llmbreakr
+                port:
+                  name: dashboard
+  # tls:
+  #   - hosts: ["gateway.example.com", "admin.example.com"]
+  #     secretName: llmbreakr-tls
