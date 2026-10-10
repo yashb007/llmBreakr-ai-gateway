@@ -12,11 +12,16 @@ const RANGE_MS = {
 // Hourly buckets for the 24h view, daily buckets otherwise — unless a caller
 // explicitly forces daily buckets (bucket: "day"), for a chart that always
 // wants one bar per calendar day regardless of which window is selected.
-// Both forms go through DATE_FORMAT (not the bare DATE() function) so the
-// grouped column always comes back as a plain string — matters for
-// fillSeries below, which needs to look values up by that same string key.
+// Both forms go through a DATE_FORMAT/strftime equivalent (not the bare
+// DATE() function) so the grouped column always comes back as a plain
+// string — matters for fillSeries below, which needs to look values up by
+// that same string key.
 const isHourlyBucket = (range, forcedBucket) => forcedBucket !== "day" && range === "24h";
-const bucketFn = (hourly) => fn("DATE_FORMAT", col("ts"), hourly ? "%Y-%m-%d %H:00:00" : "%Y-%m-%d");
+const bucketFn = (hourly) => {
+  const fmt = hourly ? "%Y-%m-%d %H:00:00" : "%Y-%m-%d";
+  // MySQL: DATE_FORMAT(col, fmt). SQLite: strftime(fmt, col) — reversed arg order.
+  return sequelize.getDialect() === "sqlite" ? fn("strftime", fmt, col("ts")) : fn("DATE_FORMAT", col("ts"), fmt);
+};
 
 const pad2 = (n) => String(n).padStart(2, "0");
 const dayKeyOf = (d) => `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())}`;

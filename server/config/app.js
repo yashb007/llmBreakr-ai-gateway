@@ -39,7 +39,9 @@ app.use(helmet());
 // enable CORS - Cross Origin Resource Sharing
 app.use(cors());
 
-app.get(`/${process.env.LOADER_HASH}`, (req, res) => res.send(`${process.env.LOADER_HASH}`));
+if (process.env.LOADER_HASH) {
+  app.get(`/${process.env.LOADER_HASH}`, (req, res) => res.send(process.env.LOADER_HASH));
+}
 
 // mount api v1 routes
 app.use("/api/admin", adminRoutes);

@@ -14,7 +14,11 @@ RUN npm run build
 FROM node:20-alpine AS server-deps
 WORKDIR /server
 COPY server/package*.json ./
-RUN npm install --omit=dev
+# python3/make/g++: fallback toolchain for sqlite3's native binding in case
+# no prebuilt binary matches this platform (musl/arm64/etc).
+RUN apk add --no-cache --virtual .build-deps python3 make g++ \
+  && npm install --omit=dev \
+  && apk del .build-deps
 
 FROM node:20-alpine AS runner
 WORKDIR /app
@@ -34,6 +38,12 @@ RUN chmod +x ./start.sh
 
 ENV PORT=4000
 ENV EXPRESS_API_URL=http://localhost:4000
+
+# Embedded SQLite storage when DB_HOST isn't set (see server/config/vars.js).
+# Declared as a volume so the database survives container restarts even
+# without an explicit bind mount.
+RUN mkdir -p ./server/data
+VOLUME /app/server/data
 
 EXPOSE 4000 3000
 

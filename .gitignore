@@ -7,3 +7,4 @@ package-lock.json
 docs/*
 .DS_Store
 .idea/
+server/data/

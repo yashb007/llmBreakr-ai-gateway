@@ -24,7 +24,7 @@ export async function POST(request: Request) {
 
   const { access_token, refresh_token, user }: { access_token: string; refresh_token: string; user: User } = json;
   const response = NextResponse.json({ user });
-  const cookieBase = { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax" as const, path: "/" };
+  const cookieBase = { httpOnly: true, secure: process.env.COOKIE_SECURE ? process.env.COOKIE_SECURE === "true" : process.env.NODE_ENV === "production", sameSite: "lax" as const, path: "/" };
   response.cookies.set(ACCESS_COOKIE, access_token, { ...cookieBase, maxAge: ACCESS_MAX_AGE_SECONDS });
   response.cookies.set(REFRESH_COOKIE, refresh_token, { ...cookieBase, maxAge: REFRESH_MAX_AGE_SECONDS });
   return response;

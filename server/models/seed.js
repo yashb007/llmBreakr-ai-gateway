@@ -16,5 +16,5 @@ export const seedSuperAdmin = async () => {
     status: "active",
   });
 
-  console.info(`super admin user created: ${superAdminEmail.email}`);
+  console.info(`super admin user created — log in with ${superAdminEmail.email} / admin (change this password after logging in)`);
 };

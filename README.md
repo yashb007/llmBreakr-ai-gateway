@@ -89,7 +89,13 @@ Both the admin API and the dataplane proxy run in the same Express app (`server/
 
 ### Prerequisites
 
-![Node](https://img.shields.io/badge/Node.js-%E2%89%A518-339933?logo=node.js&logoColor=white) &nbsp; ![MySQL](https://img.shields.io/badge/MySQL-required-4479A1?logo=mysql&logoColor=white) &nbsp; ![Redis](https://img.shields.io/badge/Redis-required-DC382D?logo=redis&logoColor=white)
+![Node](https://img.shields.io/badge/Node.js-%E2%89%A518-339933?logo=node.js&logoColor=white) &nbsp; ![MySQL](https://img.shields.io/badge/MySQL-optional-4479A1?logo=mysql&logoColor=white) &nbsp; ![Redis](https://img.shields.io/badge/Redis-optional-DC382D?logo=redis&logoColor=white)
+
+No `DB_HOST`? The server falls back to an embedded SQLite file (`server/data/llmbreakr.sqlite`) automatically — fine for trying it out or single-instance use. Set `DB_HOST`/`DB_PORT`/`DB_NAME`/`DB_USER`/`DB_PASSWORD` to point at MySQL for production instead.
+
+No `REDIS_HOST`? Same idea — an in-process cache stands in for Redis (rate limits, budgets, and the virtual-key cache just live in this process's memory instead, and reset on restart). Set `REDIS_HOST` to a real Redis instance for production or anything running more than one instance.
+
+Nothing set at all — no `.env`, no `DB_HOST`, no `REDIS_HOST`, no secrets? The server still boots: SQLite + the in-process cache kick in, `JWT_SECRET`/`CREDENTIAL_ENCRYPTION_KEY` are generated and saved to `server/data/.secrets.json` so they survive restarts, and a super admin is seeded at `admin@llmbreakr.local` / `admin` (change the password after logging in). Set any of these explicitly and they take priority over the generated/default values.
 
 <details open>
 <summary><b>1 · Server (admin API + gateway)</b></summary>
@@ -97,8 +103,7 @@ Both the admin API and the dataplane proxy run in the same Express app (`server/
 ```bash
 cd server
 npm install
-cp .env.example .env   # fill in DB, Redis, JWT secret, etc. — see server/.env.example for what each var does
-npm run dev
+npm run dev   # zero-config: no .env needed. To customize, cp .env.example .env first — see server/.env.example
 ```
 
 </details>
@@ -122,11 +127,10 @@ The dashboard defaults to talking to the server at `http://localhost:4000` (`EXP
 
 The whole gateway (API + admin dashboard) ships as a **single image**, built from the one `Dockerfile` at the repo root — it runs both processes in one container (`start.sh` starts `server/index.js` on :4000 and the dashboard on :3000, and stops the container if either one dies).
 
-`docker-compose.yml` only runs this one `app` container — **bring your own MySQL and Redis** (managed or self-hosted; set `DB_HOST`/`DB_PORT`/`REDIS_HOST`/`REDIS_PORT` in `.env` to point at them). This keeps the compose file minimal and doesn't lock you into a container-per-database setup, but it does mean you need a reachable database and Redis instance *before* running this.
+`docker-compose.yml` only runs this one `app` container, and needs no `.env` at all to start — the database, cache, and secrets all fall back to in-container/in-process/auto-generated defaults (see above). Set `DB_HOST`/`DB_PORT`/`DB_NAME`/`DB_USER`/`DB_PASSWORD` for MySQL, `REDIS_HOST`/`REDIS_PORT` for Redis, and `JWT_SECRET`/`CREDENTIAL_ENCRYPTION_KEY`/`SUPER_ADMIN_EMAIL` for production, once you're past trying it out.
 
 ```bash
-cp .env.example .env   # fill in DB_HOST/REDIS_HOST + JWT/admin secrets
-docker compose up --build
+docker compose up --build   # zero-config. cp .env.example .env first to customize any of it.
 ```
 
 Gateway API → `http://localhost:4000`, dashboard → `http://localhost:3000`. Both processes share one `.env` — since they run in the same container, `EXPRESS_API_URL` just points at `http://localhost:4000` (baked into the image), so there's no cross-container config to keep in sync.

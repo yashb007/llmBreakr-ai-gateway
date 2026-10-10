@@ -1,11 +1,11 @@
 import sequelize from "./sql.js";
-import redisClient from "./redis.js";
+import redisClient, { backend as cacheBackend } from "./redis.js";
 import "../models/index.js";
 import { seedSuperAdmin } from "../models/seed.js";
 
 export const connectClients = async () => {
   await sequelize.authenticate();
-  console.info("mysql connection established");
+  console.info(`${sequelize.getDialect()} connection established`);
 
   await sequelize.sync();
   console.info("database tables synced");
@@ -13,7 +13,7 @@ export const connectClients = async () => {
   await seedSuperAdmin();
 
   await redisClient.connect();
-  console.info("redis connection established");
+  console.info(cacheBackend === "redis" ? "redis connection established" : "in-memory cache ready (no REDIS_HOST set)");
 };
 
 export { sequelize, redisClient };

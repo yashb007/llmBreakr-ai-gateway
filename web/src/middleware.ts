@@ -61,7 +61,7 @@ export async function middleware(request: NextRequest) {
     const response = NextResponse.next();
     response.cookies.set(ACCESS_COOKIE, access_token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: process.env.COOKIE_SECURE ? process.env.COOKIE_SECURE === "true" : process.env.NODE_ENV === "production",
       sameSite: "lax",
       path: "/",
       maxAge: ACCESS_MAX_AGE_SECONDS,

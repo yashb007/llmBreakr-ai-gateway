@@ -3,7 +3,12 @@ services:
     build: .
     image: yashbansal0412/llmbreakr-ai-gateway:${IMAGE_TAG:-latest}
     restart: unless-stopped
-    env_file: .env
+    # `required: false` -> `docker compose up` works with no .env at all
+    # (zero-config defaults kick in — see server/config/secrets.js and
+    # server/config/vars.js). Needs Docker Compose >= 2.24 (Jan 2024).
+    env_file:
+      - path: .env
+        required: false
     ports:
       - "4000:4000" # gateway API + admin API
       - "3000:3000" # admin dashboard
