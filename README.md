@@ -280,7 +280,7 @@ flowchart TD
 
 ## 🤝 Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md).
+See [CONTRIBUTING.md](CONTRIBUTING.md) .
 
 ## 📄 License
 
